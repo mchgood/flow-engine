@@ -1,0 +1,61 @@
+package io.github.mchgood.flow;
+
+import org.springframework.expression.*;
+import org.springframework.expression.spel.SpelNode;
+import org.springframework.expression.spel.standard.*;
+import org.springframework.expression.spel.support.*;
+import java.util.*;
+
+/** Read-only, interpreted SpEL for trusted application flow definitions. */
+public final class SpelConditionEvaluator implements ConditionEvaluator {
+    private static final Set<String> ALLOWED=Set.of("CompoundExpression","VariableReference","PropertyOrFieldReference","Indexer",
+        "StringLiteral","BooleanLiteral","NullLiteral","IntLiteral","LongLiteral","RealLiteral","FloatLiteral",
+        "OpAnd","OpOr","OperatorNot","OpEQ","OpNE","OpLT","OpLE","OpGT","OpGE",
+        "OpPlus","OpMinus","OpMultiply","OpDivide","OpModulus","Ternary","Elvis");
+    private record Parsed(SpelExpression expression,SourceLocation location) implements CompiledCondition{}
+    @Override public CompiledCondition parse(String text,SourceLocation location){
+        if(text==null||text.length()>2048)throw new FlowException("EXPRESSION_LIMIT",location.toString());
+        try {
+            var expression=(SpelExpression)new SpelExpressionParser().parseExpression(text);
+            validate(expression.getAST(),0);
+            return new Parsed(expression,location);
+        }catch(FlowException e){throw e;}catch(RuntimeException e){throw new FlowException("EXPRESSION_SYNTAX_ERROR",location+" Invalid SpEL",e);}
+    }
+    private void validate(SpelNode node,int depth){
+        String kind=node.getClass().getSimpleName();
+        if(depth>32||!ALLOWED.contains(kind))throw new FlowException("EXPRESSION_FORBIDDEN",kind);
+        if(kind.equals("VariableReference")&&!Set.of("#input","#results").contains(node.toStringAST()))throw new FlowException("EXPRESSION_FORBIDDEN",node.toStringAST());
+        if(kind.equals("PropertyOrFieldReference")&&Set.of("class","classLoader","declaringClass").contains(node.toStringAST()))throw new FlowException("EXPRESSION_FORBIDDEN",node.toStringAST());
+        if(kind.equals("CompoundExpression")&&node.getChildCount()>1&&node.getChild(0).toStringAST().equals("#results")){
+            var index=node.getChild(1);
+            if(!index.getClass().getSimpleName().equals("Indexer")||index.getChildCount()!=1||!index.getChild(0).getClass().getSimpleName().equals("StringLiteral"))throw new FlowException("EXPRESSION_FORBIDDEN","Use a literal ancestor ID");
+        }
+        for(int i=0;i<node.getChildCount();i++)validate(node.getChild(i),depth+1);
+    }
+    @Override public boolean evaluate(CompiledCondition condition,NodeContext data){
+        var parsed=(Parsed)condition;
+        try{
+            Map<String,Object> results=new LinkedHashMap<>();
+            data.ancestors().forEach((id,n)->{
+                Map<String,Object> out=new LinkedHashMap<>();out.put("status",n.status().name());out.put("present",n.present());out.put("value",n.value());out.put("skipReason",n.skipReason());
+                results.put(id,Collections.unmodifiableMap(out));
+            });
+            Map<String,Object> guarded=new AbstractMap<>(){
+                public Set<Entry<String,Object>> entrySet(){return Collections.unmodifiableMap(results).entrySet();}
+                @Override public Object get(Object id){if(!results.containsKey(id))throw new FlowException("CONTEXT_ACCESS_DENIED","Not an ancestor: "+id);return results.get(id);}
+            };
+            var context=SimpleEvaluationContext.forPropertyAccessors(new ReadOnlyMapAccessor(),DataBindingPropertyAccessor.forReadOnlyAccess()).withAssignmentDisabled().build();
+            context.setVariable("input",data.input());context.setVariable("results",guarded);
+            Object value=parsed.expression.getValue(context);
+            if(!(value instanceof Boolean result))throw new FlowException("EXPRESSION_TYPE_ERROR",parsed.location+" Expected Boolean");
+            return result;
+        }catch(FlowException e){throw e;}catch(RuntimeException e){throw new FlowException("EXPRESSION_EVALUATION_ERROR",parsed.location+" SpEL evaluation failed",e);}
+    }
+    private static final class ReadOnlyMapAccessor implements PropertyAccessor {
+        public Class<?>[] getSpecificTargetClasses(){return new Class<?>[]{Map.class};}
+        public boolean canRead(EvaluationContext c,Object target,String name){return target instanceof Map<?,?> map&&map.containsKey(name);}
+        public TypedValue read(EvaluationContext c,Object target,String name){return new TypedValue(((Map<?,?>)target).get(name));}
+        public boolean canWrite(EvaluationContext c,Object target,String name){return false;}
+        public void write(EvaluationContext c,Object target,String name,Object value){throw new FlowException("EXPRESSION_FORBIDDEN","Read only");}
+    }
+}
