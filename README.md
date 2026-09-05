@@ -20,25 +20,30 @@
 - JDK 17+
 - Maven 3.9+
 - Spring Framework 7（Spring 适配模块）
+- Spring Boot Starter 已验证 Boot 4.1.1 / Spring 7.0.9
 
 ## 快速开始
 
-业务节点实现 `FlowNode` 并注册为 Spring Bean：
+Spring Boot 应用引入 Starter（尚未发布 Maven Central，请先在源码根目录 `mvn install`）：
+
+```xml
+<dependency>
+    <groupId>io.github.mchgood</groupId>
+    <artifactId>flow-engine-spring-boot-starter</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+</dependency>
+```
+
+业务节点实现 `FlowNode` 并注册为 Spring Bean；引擎自动装配，可直接注入 `FlowEngine`：
 
 ```java
 @Bean
 FlowNode validateOrder() {
     return context -> Map.of("valid", true);
 }
-
-@Bean(destroyMethod = "close")
-FlowEngine flowEngine(ConfigurableListableBeanFactory beans) {
-    return new DefaultFlowEngine(
-        new SpringNodeResolver(beans),
-        new SpelConditionEvaluator()
-    );
-}
 ```
+
+完整启动示例、`flow-engine.*` 配置和覆盖规则见 [Spring Boot 接入](docs/spring-boot.md)。普通 Spring 项目仍可使用 `flow-engine-spring` 手动装配。
 
 使用 Mermaid 编排：
 
@@ -84,6 +89,7 @@ FlowResult result = engine.execute(
 
 - `flow-engine-core`：Mermaid 子集编译、图校验、DAG 调度与公共 API。
 - `flow-engine-spring`：Spring Bean 解析和安全受限的 SpEL 求值。
+- `flow-engine-spring-boot-starter`：Boot 自动装配、配置绑定与容器关闭清理。
 - `flow-engine-examples`：串行、条件、并行、别名及子流程组合示例。
 
 主要包结构：
@@ -99,6 +105,7 @@ FlowResult result = engine.execute(
 | `internal.compiler` | Mermaid 解析、图校验、Bean 绑定；MutableGraph 仅包内可见 |
 | `internal.graph` | 不可变编译图 Definition，供编译器和运行时共享 |
 | `runtime` | DefaultFlowEngine；调度、注册与每次执行状态 |
+| `boot.autoconfigure`（Starter 模块） | Boot 自动装配与配置属性 |
 | `spring`（Spring 模块） | SpringNodeResolver、SpelConditionEvaluator |
 
 依赖方向：`runtime → internal.compiler → internal.graph`，运行时也读取 `internal.graph`；图模型不依赖编译器或运行时。`api`、`node`、`spi`、`config`、`result`、`exception` 均不依赖实现包或 Spring。`node → result / exception`，`spi → node`，`api → result`。

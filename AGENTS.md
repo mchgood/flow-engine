@@ -12,10 +12,11 @@ Keep the project framework-only. Do not add a database, web console, visual edit
 - Maven multi-module build.
 - `flow-engine-core`: contracts in `api`, `node`, `spi`, `config`, `result`, `exception`; immutable compiled topology in `internal.graph`, compilation drafts in `internal.compiler`, and execution in `runtime` (all under `io.github.mchgood.flow`).
 - `flow-engine-spring`: Spring Bean resolution and restricted SpEL evaluation under `io.github.mchgood.flow.spring`.
+- `flow-engine-spring-boot-starter`: Boot 4 auto-configuration, configuration properties and lifecycle integration; keep Boot dependencies out of core and plain Spring modules.
 - `flow-engine-examples`: executable usage examples and integration tests.
 - `docs`: requirements and technical design. Keep both documents synchronized with semantic changes.
 
-The core module must not depend on Spring. Spring-specific code belongs in `flow-engine-spring`.
+The core module must not depend on Spring. Spring adapter code belongs in `flow-engine-spring`; Boot integration belongs in the starter. Auto-configuration must back off for user-defined beans, release its engine on context close, and must not automatically load or execute flows.
 
 ## Established workflow semantics
 

@@ -4,6 +4,10 @@
 日期：2026-09-05  
 本期目标：通过 Markdown 中的 Mermaid 流程图，编排 Spring Bean，支持串行、并行、排他条件分支和显式子流程调用。
 
+## Spring Boot 接入补充
+
+交付 `flow-engine-spring-boot-starter`，引入后自动装配 FlowEngine、节点解析器、条件求值器和 EngineConfig。通过 `flow-engine.*` 配置资源与期限，默认值与 core 一致；非法配置启动失败。允许按类型覆盖默认 Bean，支持关闭自动装配；容器关闭时关闭自动创建的引擎。流程加载、注册和执行时机仍由宿主决定。当前验证基线为 Boot 4.1.1 / Spring 7.0.9，普通 Spring 接入保留。
+
 ## 1. 背景与目标
 
 希望建立一个面向 Java/Spring 开发者的轻量级流程引擎，让业务逻辑保留在 Spring Bean 中，流程关系通过 Markdown 流程图维护。开发者修改连线即可调整执行顺序与并行关系，并能在支持 Mermaid 的 Markdown 阅读器中查看流程。

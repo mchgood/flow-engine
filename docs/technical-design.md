@@ -11,7 +11,7 @@
 
 | 设计点 | 方案 |
 | --- | --- |
-| 交付方式 | core 与 spring 两个框架模块，另附 examples |
+| 交付方式 | core、spring、spring-boot-starter 三个框架模块，另附 examples |
 | 定义入口 | register(flowId, markdown)，可选资源文件适配 |
 | Markdown 解析 | 使用 commonmark-java 提取围栏代码块 |
 | Mermaid 解析 | 自建受限词法分析器和语法解析器，只解释需求约定的子集 |
@@ -64,7 +64,7 @@ flowchart TD
 
 ### 2.2 flow-engine-spring
 
-提供 SpringNodeResolver 和显式 Java 配置入口。宿主定义 FlowEngine Bean，在需要时注册流程并调用。首期不要求 Spring Boot Starter、自动扫描流程目录或启动时强制加载。
+提供 SpringNodeResolver 和显式 Java 配置入口。宿主定义 FlowEngine Bean，在需要时注册流程并调用。同时提供独立 Spring Boot Starter 自动装配入口；不自动扫描流程目录或启动时强制加载。
 
 仅 TASK 使用业务 Spring Bean；所有网关及起止节点由引擎执行。spring 模块提供 SpelConditionEvaluator，并依赖与宿主 Spring 版本对齐的 spring-expression。core 只依赖 ConditionEvaluator SPI，不直接引用 SpEL 类型。Spring 适配使用容器按名称查找 Bean，并保留返回实例；是否可保留共享实例应结合 Bean 作用域判断。首期约定节点为 singleton，拒绝 prototype 和依赖请求作用域的节点。这是新增的接入限制，需纳入接口文档。[Spring BeanFactory](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/beans/factory/BeanFactory.html)、[Bean 作用域](https://docs.spring.io/spring-framework/reference/core/beans/factory-scopes.html)
 
@@ -536,3 +536,14 @@ DefinitionError 包含 code、message、sourceName、line、column、nodeId、ed
 统一 TASK/CALL_FLOW 的小驼峰 targetId 与单下划线 alias，移除注释映射；引入双边框子流程、批量原子注册和引用环校验。根调用线程与共享短锁管理整棵执行树，子完成事件推进父节点，无工作线程同步等待。数据隔离、嵌套结果、期限/取消传播与树容量同步落入契约和测试。
 
 SpEL 唯一匹配、正常跳过传播及原排他区域限制保留。本次没有新增父子数据映射语言或循环执行；子流程默认接收原始 input。方案尚待实现和并发验证，尤其要验证单线程多层嵌套与父超时/子完成的竞争。
+
+
+## Spring Boot Starter 接入设计
+
+`flow-engine-spring-boot-starter` 同时包含小规模自动配置代码和依赖聚合，避免只有一个自动配置类时再增加独立发布模块。依赖方向为 starter → spring → core，只有 starter 引入 Boot。当前验证基线为 Boot 4.1.1 / Spring 7.0.9。
+
+`boot.autoconfigure.FlowEngineAutoConfiguration` 通过 `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` 注册，使用 `@ConditionalOnClass` 和 `flow-engine.enabled` 控制生效。四类基础设施分别按类型 `@ConditionalOnMissingBean` 退让，允许覆盖 FlowEngine、NodeResolver、ConditionEvaluator 和 EngineConfig。
+
+`FlowEngineProperties` 用 `@ConfigurationProperties` 绑定 `flow-engine.*`，资源参数默认取自 EngineConfig.defaults()，创建配置时复用 EngineConfig 校验。未知键拒绝绑定，配置只在启动时读取；自定义 EngineConfig 优先于资源属性。配置处理器生成 IDE 元数据。自动创建的 DefaultFlowEngine 通过 Bean destroyMethod=close 管理关闭；流程注册和执行保持显式 API 调用。
+
+验证覆盖：默认启动及业务调用、全部参数绑定、非法和未知参数、禁用开关、各类用户 Bean 覆盖、缺失 core 类、容器关闭、实际自动发现和元数据生成。使用 Spring Boot 官方推荐的 ApplicationContextRunner，另以 EnableAutoConfiguration 验证 imports 入口。完整示例见 [Spring Boot 接入](spring-boot.md)。

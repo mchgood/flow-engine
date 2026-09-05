@@ -12,12 +12,14 @@
     <modules>
         <module>flow-engine-core</module>
         <module>flow-engine-spring</module>
+        <module>flow-engine-spring-boot-starter</module>
         <module>flow-engine-examples</module>
     </modules>
 
     <properties>
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <spring-boot.version>4.1.1</spring-boot.version>
         <spring.version>7.0.9</spring.version>
         <junit.version>5.11.4</junit.version>
     </properties>

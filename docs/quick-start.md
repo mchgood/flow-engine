@@ -1,5 +1,7 @@
 # Flow Engine 快速使用
 
+Spring Boot 用户优先阅读 [Starter 接入指南](spring-boot.md)，可省去手动构造引擎。
+
 本文用一个最小 Spring 示例演示如何定义节点、编写 Mermaid 流程、注册并执行流程。
 
 ## 1. 环境要求
