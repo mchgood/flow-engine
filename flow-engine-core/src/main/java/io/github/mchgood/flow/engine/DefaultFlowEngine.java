@@ -1,11 +1,13 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.engine;
+
+import io.github.mchgood.flow.*;
 
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.*;
-import static io.github.mchgood.flow.Definition.*;
+import static io.github.mchgood.flow.engine.Definition.*;
 
 /** Single-process DAG engine. Each root caller coordinates its entire child execution tree. */
 public final class DefaultFlowEngine implements FlowEngine {

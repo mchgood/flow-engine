@@ -1,4 +1,6 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.spring;
+
+import io.github.mchgood.flow.*;
 
 import org.springframework.expression.*;
 import org.springframework.expression.spel.SpelNode;

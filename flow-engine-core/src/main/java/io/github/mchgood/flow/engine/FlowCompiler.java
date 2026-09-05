@@ -1,4 +1,6 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.engine;
+
+import io.github.mchgood.flow.*;
 
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.Document;
@@ -7,7 +9,7 @@ import org.commonmark.parser.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
-import static io.github.mchgood.flow.Definition.*;
+import static io.github.mchgood.flow.engine.Definition.*;
 
 /** Compiles a deliberately small Mermaid subset, preserving source positions. */
 final class FlowCompiler {

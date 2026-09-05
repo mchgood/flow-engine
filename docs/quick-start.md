@@ -31,6 +31,11 @@ Spring 应用通常只需要引入 Spring 适配模块，它会传递依赖核�
 每个矩形任务节点对应一个实现 `FlowNode` 的 singleton Spring Bean。Bean 名称就是流程图中的节点 ID。
 
 ```java
+import io.github.mchgood.flow.*;
+import io.github.mchgood.flow.engine.DefaultFlowEngine;
+import io.github.mchgood.flow.spring.SpelConditionEvaluator;
+import io.github.mchgood.flow.spring.SpringNodeResolver;
+
 @Configuration
 public class FlowConfiguration {
 

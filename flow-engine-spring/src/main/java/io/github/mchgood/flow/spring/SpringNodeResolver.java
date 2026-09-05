@@ -1,4 +1,6 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.spring;
+
+import io.github.mchgood.flow.*;
 
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.aop.scope.ScopedProxyUtils;

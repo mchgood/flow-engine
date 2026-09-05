@@ -86,6 +86,12 @@ FlowResult result = engine.execute(
 - `flow-engine-spring`：Spring Bean 解析和安全受限的 SpEL 求值。
 - `flow-engine-examples`：串行、条件、并行、别名及子流程组合示例。
 
+主要包结构：
+
+- `io.github.mchgood.flow`：公共 API、配置和执行结果模型。
+- `io.github.mchgood.flow.engine`：编译器、图模型和运行时实现。
+- `io.github.mchgood.flow.spring`：Spring Bean 与 SpEL 适配。
+
 ## 验证
 
 ```bash

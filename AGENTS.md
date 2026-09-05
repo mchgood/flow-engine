@@ -10,8 +10,8 @@ Keep the project framework-only. Do not add a database, web console, visual edit
 
 - Java 17 or newer.
 - Maven multi-module build.
-- `flow-engine-core`: public API, Markdown/Mermaid compilation, graph validation, execution model, and DAG scheduler.
-- `flow-engine-spring`: Spring Bean resolution and restricted SpEL evaluation.
+- `flow-engine-core`: public API under `io.github.mchgood.flow`; compilation and runtime implementation under `io.github.mchgood.flow.engine`.
+- `flow-engine-spring`: Spring Bean resolution and restricted SpEL evaluation under `io.github.mchgood.flow.spring`.
 - `flow-engine-examples`: executable usage examples and integration tests.
 - `docs`: requirements and technical design. Keep both documents synchronized with semantic changes.
 
