@@ -14,6 +14,7 @@ Keep the project framework-only. Do not add a database, web console, visual edit
 - `flow-engine-spring`: Spring Bean resolution and restricted SpEL evaluation under `io.github.mchgood.flow.spring`.
 - `flow-engine-spring-boot-starter`: Boot 4 auto-configuration, configuration properties and lifecycle integration; keep Boot dependencies out of core and plain Spring modules.
 - `flow-engine-examples`: executable usage examples and integration tests.
+- `flow-engine-coverage`: build-only aggregate JaCoCo report; never add it as a runtime dependency.
 - `docs`: requirements and technical design. Keep both documents synchronized with semantic changes.
 
 The core module must not depend on Spring. Spring adapter code belongs in `flow-engine-spring`; Boot integration belongs in the starter. Auto-configuration must back off for user-defined beans, release its engine on context close, and must not automatically load or execute flows.
@@ -81,6 +82,10 @@ Add tests for every behavior change. Relevant coverage includes:
 - failures, node/flow timeouts, cancellation, interruption, and late completion;
 - bounded queues, admission rejection, one-worker child flows, and concurrent execution isolation;
 - registration atomicity, engine shutdown, and flow-reference validation.
+
+Run `python3 scripts/check-coverage.py` after `mvn verify`. CI enforces aggregate line coverage >= 95% and branch coverage >= 88% across core, Spring and Starter; examples contribute execution data but not production class counts. Do not lower thresholds to make failures pass. Keep `docs/testing-coverage.md` aligned with verified scenarios and explicitly label remaining gaps.
+
+Concurrency tests should use latches/barriers and bounded waits; always release blocked tasks and shut down callers in finally blocks. Negative tests should assert error codes and observable side effects, not only that execution failed. Generated tests must use fixed seeds and an independent expected-result calculation.
 
 Do not treat test count alone as evidence of completeness. For scheduler or parser changes, consider race-focused tests, stress tests, and fuzz/property-based tests.
 

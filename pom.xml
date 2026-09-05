@@ -14,6 +14,7 @@
         <module>flow-engine-spring</module>
         <module>flow-engine-spring-boot-starter</module>
         <module>flow-engine-examples</module>
+        <module>flow-engine-coverage</module>
     </modules>
 
     <properties>
@@ -45,6 +46,22 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.13</version>
+                <configuration>
+                    <append>false</append>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>coverage-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

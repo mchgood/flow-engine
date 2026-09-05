@@ -13,3 +13,12 @@ jobs:
           java-version: '17'
           cache: maven
       - run: mvn -B verify
+      - run: python3 scripts/check-coverage.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-and-coverage-reports
+          path: |
+            **/target/surefire-reports/
+            flow-engine-coverage/target/site/jacoco-aggregate/
+          retention-days: 14

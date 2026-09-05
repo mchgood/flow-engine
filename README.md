@@ -90,6 +90,7 @@ FlowResult result = engine.execute(
 - `flow-engine-core`：Mermaid 子集编译、图校验、DAG 调度与公共 API。
 - `flow-engine-spring`：Spring Bean 解析和安全受限的 SpEL 求值。
 - `flow-engine-spring-boot-starter`：Boot 自动装配、配置绑定与容器关闭清理。
+- `flow-engine-coverage`：仅构建时聚合跨模块覆盖率，不作为运行依赖。
 - `flow-engine-examples`：串行、条件、并行、别名及子流程组合示例。
 
 主要包结构：
@@ -127,3 +128,10 @@ mvn verify
 - [技术方案](docs/technical-design.md)
 
 当前版本为原型阶段的 `0.1.0-SNAPSHOT`，API 尚未承诺兼容性。
+
+
+## 测试覆盖与 CI
+
+执行 `mvn verify` 后运行 `python3 scripts/check-coverage.py`。聚合 HTML 报告位于 `flow-engine-coverage/target/site/jacoco-aggregate/index.html`；CI 保存测试报告与覆盖率报告，并检查行覆盖率至少 95%、分支覆盖率至少 88%。
+
+本次审查的 200 个测试用例全部通过，含 36 张固定种子生成 DAG 的独立结果对照。分类、断言范围与仍未覆盖的风险见 [测试覆盖审查](docs/testing-coverage.md)。测试数量和覆盖率都不等于所有并发交错已经验证。

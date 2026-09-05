@@ -152,6 +152,42 @@ class FlowEngineAutoConfigurationTest {
         }
     }
 
+    @Test
+    void disabledAutoConfigurationPreservesUserEngine() {
+        var engine = new DefaultFlowEngine(id -> node -> null, new SpelConditionEvaluator());
+        try {
+            runner.withPropertyValues("flow-engine.enabled=false")
+                .withBean("custom", FlowEngine.class, () -> engine).run(context -> {
+                    assertThat(context).hasSingleBean(FlowEngine.class).doesNotHaveBean(NodeResolver.class);
+                    assertThat(context.getBean(FlowEngine.class)).isSameAs(engine);
+                });
+        } finally { engine.close(); }
+    }
+
+    @Test
+    void missingSpelAdapterPreventsAutoConfiguration() {
+        runner.withClassLoader(new FilteredClassLoader(SpelConditionEvaluator.class))
+            .run(context -> assertThat(context).doesNotHaveBean(FlowEngineAutoConfiguration.class));
+    }
+
+    @Test
+    void ambiguousResolversFailInsteadOfChoosingArbitrarily() {
+        runner.withBean("first", NodeResolver.class, () -> name -> node -> 1)
+            .withBean("second", NodeResolver.class, () -> name -> node -> 2)
+            .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void primaryResolverIsUsedWhenMultipleCandidatesExist() {
+        runner.withBean("first", NodeResolver.class, () -> name -> node -> 1)
+            .withBean("preferred", NodeResolver.class, () -> name -> node -> 2, definition -> definition.setPrimary(true))
+            .run(context -> {
+                var engine = context.getBean(FlowEngine.class);
+                engine.register("primary", FLOW);
+                assertThat(engine.execute("primary", null).results().get("echo").value()).isEqualTo(2);
+            });
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration
     static class BootHost {}
