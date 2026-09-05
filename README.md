@@ -94,6 +94,7 @@ mvn verify
 
 ## 文档
 
+- [快速使用](docs/quick-start.md)
 - [需求文档](docs/requirements.md)
 - [技术方案](docs/technical-design.md)
 
