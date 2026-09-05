@@ -1,4 +1,4 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.result;
 
 import java.time.Instant;
 import java.util.*;

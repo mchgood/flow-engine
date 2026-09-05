@@ -1,6 +1,11 @@
 package io.github.mchgood.flow.spring;
 
-import io.github.mchgood.flow.*;
+import io.github.mchgood.flow.exception.FlowException;
+import io.github.mchgood.flow.node.NodeContext;
+import io.github.mchgood.flow.spi.CompiledCondition;
+import io.github.mchgood.flow.spi.ConditionEvaluator;
+import io.github.mchgood.flow.spi.SourceLocation;
+
 
 import org.springframework.expression.*;
 import org.springframework.expression.spel.SpelNode;

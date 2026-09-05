@@ -1,4 +1,6 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.api;
+
+import io.github.mchgood.flow.result.FlowResult;
 
 import java.util.*;
 public interface FlowEngine extends AutoCloseable {

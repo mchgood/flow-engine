@@ -1,3 +1,3 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.spi;
 
 public interface CompiledCondition {}

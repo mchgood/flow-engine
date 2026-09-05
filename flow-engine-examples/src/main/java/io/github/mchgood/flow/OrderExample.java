@@ -1,6 +1,10 @@
 package io.github.mchgood.flow;
 
-import io.github.mchgood.flow.engine.DefaultFlowEngine;
+import io.github.mchgood.flow.api.FlowEngine;
+import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.result.FlowResult;
+
+import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 import io.github.mchgood.flow.spring.SpringNodeResolver;
 import org.springframework.context.annotation.*;

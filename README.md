@@ -88,9 +88,24 @@ FlowResult result = engine.execute(
 
 主要包结构：
 
-- `io.github.mchgood.flow`：公共 API、配置和执行结果模型。
-- `io.github.mchgood.flow.engine`：编译器、图模型和运行时实现。
-- `io.github.mchgood.flow.spring`：Spring Bean 与 SpEL 适配。
+| 包（前缀 `io.github.mchgood.flow`） | 职责与主要类型 |
+| --- | --- |
+| `api` | 流程入口：FlowEngine、FlowDescriptor、ExecutionOptions |
+| `node` | 业务节点契约：FlowNode、NodeContext |
+| `spi` | 扩展适配契约：NodeResolver、ConditionEvaluator、CompiledCondition、SourceLocation |
+| `config` | 引擎资源与期限配置：EngineConfig |
+| `result` | 执行结果、节点状态和错误记录 |
+| `exception` | 调用与定义错误：FlowException |
+| `internal.compiler` | Mermaid 解析、图校验、Bean 绑定；MutableGraph 仅包内可见 |
+| `internal.graph` | 不可变编译图 Definition，供编译器和运行时共享 |
+| `runtime` | DefaultFlowEngine；调度、注册与每次执行状态 |
+| `spring`（Spring 模块） | SpringNodeResolver、SpelConditionEvaluator |
+
+依赖方向：`runtime → internal.compiler → internal.graph`，运行时也读取 `internal.graph`；图模型不依赖编译器或运行时。`api`、`node`、`spi`、`config`、`result`、`exception` 均不依赖实现包或 Spring。`node → result / exception`，`spi → node`，`api → result`。
+
+`DefaultFlowEngine` 是可直接构造的实现入口；其协调器和执行状态仍为私有内部类，不为增加包数量而暴露。`internal.*` 中的 public 仅用于跨包协作，不属于兼容承诺。编译器把可变草稿复制为不可变拓扑、边和祖先集合，再交给运行时；Bean 实例和业务输出不作深拷贝。
+
+本次为尚未发布版本的包名调整，使用方需更新 import；流程语法与执行行为不变。
 
 ## 验证
 

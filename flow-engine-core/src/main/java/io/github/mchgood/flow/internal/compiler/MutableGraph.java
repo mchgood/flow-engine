@@ -1,11 +1,15 @@
-package io.github.mchgood.flow.engine;
+package io.github.mchgood.flow.internal.compiler;
 
-import io.github.mchgood.flow.*;
+import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.spi.CompiledCondition;
+import io.github.mchgood.flow.spi.SourceLocation;
+
 
 import java.util.*;
+import io.github.mchgood.flow.internal.graph.Definition.Type;
 
-final class Definition {
-    enum Type { START, FINISH, TASK, CALL_FLOW, XOR_SPLIT, XOR_JOIN, AND_SPLIT, AND_JOIN }
+final class MutableGraph {
+
     static final class Node {
         final String id,label,target; final SourceLocation location;
         Type type; FlowNode bean;
@@ -19,9 +23,4 @@ final class Definition {
         Edge(Node from,Node to,String text,SourceLocation location){this.from=from;this.to=to;this.text=text;this.location=location;id=from.id+"->"+to.id;}
         boolean fallback(){return "default".equals(text);}
     }
-    final String id,hash;
-    final Map<String,Node> nodes;
-    final List<Node> ordered;
-    Definition(String id,String hash,Map<String,Node> nodes,List<Node> ordered){this.id=id;this.hash=hash;this.nodes=Collections.unmodifiableMap(new LinkedHashMap<>(nodes));this.ordered=List.copyOf(ordered);}
-    FlowDescriptor descriptor(){return new FlowDescriptor(id,hash,nodes.size());}
 }

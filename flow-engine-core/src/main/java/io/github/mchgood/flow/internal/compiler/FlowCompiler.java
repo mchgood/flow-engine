@@ -1,6 +1,10 @@
-package io.github.mchgood.flow.engine;
+package io.github.mchgood.flow.internal.compiler;
 
-import io.github.mchgood.flow.*;
+import io.github.mchgood.flow.exception.FlowException;
+import io.github.mchgood.flow.spi.ConditionEvaluator;
+import io.github.mchgood.flow.spi.NodeResolver;
+import io.github.mchgood.flow.spi.SourceLocation;
+
 
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.Document;
@@ -9,15 +13,17 @@ import org.commonmark.parser.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
-import static io.github.mchgood.flow.engine.Definition.*;
+import static io.github.mchgood.flow.internal.compiler.MutableGraph.*;
+import io.github.mchgood.flow.internal.graph.Definition;
+import io.github.mchgood.flow.internal.graph.Definition.Type;
 
 /** Compiles a deliberately small Mermaid subset, preserving source positions. */
-final class FlowCompiler {
+public final class FlowCompiler {
     private final NodeResolver resolver;
     private final ConditionEvaluator evaluator;
-    FlowCompiler(NodeResolver resolver,ConditionEvaluator evaluator){this.resolver=resolver;this.evaluator=evaluator;}
+    public FlowCompiler(NodeResolver resolver,ConditionEvaluator evaluator){this.resolver=resolver;this.evaluator=evaluator;}
     private record Decl(String id,String label,String shape,SourceLocation loc){}
-    Definition compile(String id,String markdown){
+    public Definition compile(String id,String markdown){
         if(id==null||!id.matches("[a-z][A-Za-z0-9]*"))throw new FlowException("INVALID_FLOW_ID","Expected lower camel case: "+id);
         if(markdown==null||markdown.getBytes(StandardCharsets.UTF_8).length>1_048_576)throw new FlowException("DEFINITION_LIMIT","Markdown missing or too large");
         var ast=Parser.builder().includeSourceSpans(IncludeSourceSpans.BLOCKS).build().parse(markdown.replaceFirst("^\\uFEFF",""));
@@ -96,7 +102,7 @@ final class FlowCompiler {
         for(var n:order)for(var e:n.in){n.ancestors.addAll(e.from.ancestors);n.ancestors.add(e.from.id);}
         validateExclusiveRegions(order,finish);
         for(var n:nodes.values())if(n.type==Type.TASK){n.bean=resolver.resolve(n.target);if(n.bean==null)throw error("BEAN_NOT_FOUND",n.location,n.target);}
-        try {return new Definition(id,HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(markdown.getBytes(StandardCharsets.UTF_8))),nodes,order);}
+        try {return new Definition(id,HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(markdown.getBytes(StandardCharsets.UTF_8))),order.stream().map(n -> new Definition.NodeSpec(n.id,n.label,n.target,n.type,n.location,n.bean,n.ancestors)).toList(),nodes.values().stream().flatMap(n -> n.out.stream()).map(e -> new Definition.EdgeSpec(e.from.id,e.to.id,e.text,e.location,e.condition)).toList());}
         catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}
     }
     private void validateExclusiveRegions(List<Node> order,Node finish){

@@ -10,7 +10,7 @@ Keep the project framework-only. Do not add a database, web console, visual edit
 
 - Java 17 or newer.
 - Maven multi-module build.
-- `flow-engine-core`: public API under `io.github.mchgood.flow`; compilation and runtime implementation under `io.github.mchgood.flow.engine`.
+- `flow-engine-core`: contracts in `api`, `node`, `spi`, `config`, `result`, `exception`; immutable compiled topology in `internal.graph`, compilation drafts in `internal.compiler`, and execution in `runtime` (all under `io.github.mchgood.flow`).
 - `flow-engine-spring`: Spring Bean resolution and restricted SpEL evaluation under `io.github.mchgood.flow.spring`.
 - `flow-engine-examples`: executable usage examples and integration tests.
 - `docs`: requirements and technical design. Keep both documents synchronized with semantic changes.
@@ -39,7 +39,7 @@ Do not silently broaden the Mermaid subset. Unsupported Mermaid syntax must fail
 
 ## Implementation rules
 
-- Preserve separation between parsing/compilation and runtime execution.
+- Preserve separation between parsing/compilation and runtime execution. Contract packages must not import implementation packages. Graph types must not depend on compiler/runtime types. Mutable compiler drafts stay package-private; published topology must be immutable.
 - Compile and validate definitions at registration time; do not defer deterministic definition errors to execution.
 - Keep execution state isolated per invocation. The same singleton Bean may be invoked concurrently and must not carry flow state.
 - Never hold the root coordinator lock while executing user Bean code or evaluating external work.

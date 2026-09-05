@@ -1,4 +1,4 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.config;
 
 import java.time.Duration;
 public record EngineConfig(int workerThreads,int queueCapacity,int maxConcurrentExecutions,

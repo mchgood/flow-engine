@@ -1,4 +1,4 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.exception;
 
 public class FlowException extends RuntimeException {
     private final String code;

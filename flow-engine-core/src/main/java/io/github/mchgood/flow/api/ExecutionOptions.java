@@ -1,4 +1,4 @@
-package io.github.mchgood.flow;
+package io.github.mchgood.flow.api;
 
 import java.time.Duration;
 public record ExecutionOptions(Duration timeout) {
