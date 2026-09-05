@@ -32,6 +32,6 @@ class SpringResolverContractTest {
     @Configuration(proxyBeanMethods=false)
     static class PrototypeProxy {
         @Bean @Scope(value="prototype",proxyMode=ScopedProxyMode.INTERFACES)
-        FlowNode work() {return context->1;}
+        FlowNode<?> work() {return context->1;}
     }
 }

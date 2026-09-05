@@ -1,5 +1,7 @@
 # 代码与测试覆盖审查
 
+最新增量：`FlowNode<O>` 泛型输出迁移后新增 5 个用例，当前合计 205 个，verify 和覆盖率门槛均通过；以下 73 → 200 的数据保留为上一轮系统审查基线。
+
 ## 结论
 
 原有 73 个测试不是完全没有覆盖核心功能，但分布失衡：52 个集中在 Spring 模块的 FlowEngineTest，core 只有 2 个架构测试，Starter 有 18 个，示例有 1 个。部分负向测试只检查抛异常或 succeeded=false，不能证明错误分类正确、失败后未发生业务副作用。
@@ -66,3 +68,10 @@ CI 在 verify 后检查报告与必需模块是否存在，并检查行覆盖率
 - 剩余未覆盖行/分支包含防御性错误路径和属性访问器；目前没有为提高数字编写重复实现的 getter 测试。
 
 覆盖率工具行为参考 [JaCoCo 聚合报告说明](https://www.jacoco.org/jacoco/trunk/doc/report-aggregate-mojo.html)。
+
+
+## 泛型节点输出增量
+
+- FlowNodeTypeContractTest：2 个编译器用例，验证正确的 String 节点可直接获得 String 输出，错误类型的实现/返回值不能通过编译。
+- GenericNodeIntegrationTest：3 个容器集成用例，覆盖 DTO/String/Void 异构输出、下游类型不匹配失败，以及泛型节点通过 Spring AOP 代理调用。
+- 现有节点解析和图模型用 FlowNode<?> 表达异构绑定，原 200 个用例仍通过；总计 205 个。覆盖率保持行 96.03%、分支 89.98%。

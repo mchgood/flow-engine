@@ -24,7 +24,7 @@ The core module must not depend on Spring. Spring adapter code belongs in `flow-
 - A Markdown definition contains exactly one top-level fenced `mermaid` block.
 - Supported headers are `flowchart TD` and `flowchart LR`.
 - `start([label])` and `finish([label])` are reserved virtual endpoints.
-- A rectangle is a business task backed by a Spring `FlowNode` Bean.
+- A rectangle is a business task backed by a Spring `FlowNode<O>` Bean. Business nodes should declare concrete output types; resolvers and graph storage use `FlowNode<?>`. Avoid raw FlowNode types except unavoidable class literals for container lookup. Runtime result storage remains heterogeneous and downstream reads retain runtime type checks.
 - A task node ID without `_` is its Bean ID.
 - For `beanId_alias`, the text before the first `_` is the Bean ID and the complete node ID is the invocation identity. Bean IDs use lower camel case and cannot contain `_`.
 - A normal diamond with one incoming edge and multiple outgoing edges is an exclusive gateway. Its outgoing labels are restricted SpEL Boolean expressions; `default` is a reserved fallback label.

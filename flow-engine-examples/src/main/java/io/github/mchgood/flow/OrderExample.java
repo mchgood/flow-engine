@@ -29,35 +29,35 @@ public final class OrderExample {
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode validateOrder(){return ctx->Map.of("valid",true,"call",ctx.nodeId());}
+        @Bean public FlowNode<Map<String, Object>> validateOrder(){return ctx->Map.of("valid",true,"call",ctx.nodeId());}
 
         /**
          * 返回演示库存预占结果。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode reserveStock(){return ctx->Map.of("reserved",true);}
+        @Bean public FlowNode<Map<String, Boolean>> reserveStock(){return ctx->Map.of("reserved",true);}
 
         /**
          * 从输入读取 amount 并返回金额。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode calculatePrice(){return ctx->Map.of("total",ctx.input(Map.class).get("amount"));}
+        @Bean public FlowNode<Map<String, Object>> calculatePrice(){return ctx->Map.of("total",ctx.input(Map.class).get("amount"));}
 
         /**
          * 返回需要人工复核的演示标记，不等待人工操作。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode recordReview(){return ctx->"needs manual review";}
+        @Bean public FlowNode<String> recordReview(){return ctx->"needs manual review";}
 
         /**
          * 返回演示保存结果。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode saveOrder(){return ctx->Map.of("saved",true);}
+        @Bean public FlowNode<Map<String, Boolean>> saveOrder(){return ctx->Map.of("saved",true);}
 
         /**
          * 演示非 Boot 应用如何装配并管理引擎关闭。

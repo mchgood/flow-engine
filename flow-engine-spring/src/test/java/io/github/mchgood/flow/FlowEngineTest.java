@@ -31,12 +31,12 @@ import static org.junit.jupiter.api.Assertions.*;
 class FlowEngineTest {
     static String md(String body){return "# Flow\n\n```mermaid\nflowchart TD\n"+body+"\n```\n";}
     static EngineConfig config(int threads,int inFlight,Duration nodeTimeout,Duration flowTimeout){return new EngineConfig(threads,16,8,inFlight,8,64,16,nodeTimeout,nodeTimeout,flowTimeout,Duration.ofMillis(20));}
-    static DefaultFlowEngine engine(Map<String,FlowNode> beans){return engine(beans,4,8);}
-    static DefaultFlowEngine engine(Map<String,FlowNode> beans,int threads,int inFlight){return new DefaultFlowEngine(id->{var n=beans.get(id);if(n==null)throw new FlowException("BEAN_NOT_FOUND",id);return n;},new SpelConditionEvaluator(),config(threads,inFlight,Duration.ofSeconds(2),Duration.ofSeconds(3)));}
+    static DefaultFlowEngine engine(Map<String,FlowNode<?>> beans){return engine(beans,4,8);}
+    static DefaultFlowEngine engine(Map<String,FlowNode<?>> beans,int threads,int inFlight){return new DefaultFlowEngine(id->{var n=beans.get(id);if(n==null)throw new FlowException("BEAN_NOT_FOUND",id);return n;},new SpelConditionEvaluator(),config(threads,inFlight,Duration.ofSeconds(2),Duration.ofSeconds(3)));}
     @Test void aliasCallsAndAncestorResults(){
         List<String> calls=new CopyOnWriteArrayList<>();
-        FlowNode check=c->{calls.add(c.nodeId());return c.nodeId();};
-        FlowNode save=c->{assertEquals("check_before",c.ancestorValue("check_before",String.class));return null;};
+        FlowNode<?> check=c->{calls.add(c.nodeId());return c.nodeId();};
+        FlowNode<?> save=c->{assertEquals("check_before",c.ancestorValue("check_before",String.class));return null;};
         try(var e=engine(Map.of("check",check,"save",save))){
             e.register("order",md("start([开始]) --> check_before[\"before\"] --> save[\"save\"] --> check_after[\"after\"] --> finish([结束])"));
             var result=e.execute("order",Map.of());assertTrue(result.succeeded(),result.errors().toString());
@@ -45,7 +45,7 @@ class FlowEngineTest {
     }
     @Test void parallelReallyOverlapsAndJoins(){
         var barrier=new CyclicBarrier(2);var count=new AtomicInteger();
-        FlowNode work=c->{barrier.await(1,TimeUnit.SECONDS);count.incrementAndGet();return c.nodeId();};
+        FlowNode<?> work=c->{barrier.await(1,TimeUnit.SECONDS);count.incrementAndGet();return c.nodeId();};
         try(var e=engine(Map.of("a",work,"b",work,"endTask",c->{assertEquals(2,count.get());return "ok";}))){
             e.register("parallel",md("start([开始]) --> fork{\"+\"}\nfork --> a[\"a\"]\nfork --> b[\"b\"]\na --> join{\"+\"}\nb --> join\njoin --> endTask[\"end\"] --> finish([结束])"));
             assertTrue(e.execute("parallel",null).succeeded());
@@ -115,7 +115,7 @@ class FlowEngineTest {
     }
     @Test void singletonProxyIsPreserved(){
         try(var context=new GenericApplicationContext()){
-            var invoked=new AtomicInteger();ProxyFactory pf=new ProxyFactory((FlowNode)c->"ok");pf.addAdvice((org.aopalliance.intercept.MethodInterceptor)inv->{invoked.incrementAndGet();return inv.proceed();});
+            var invoked=new AtomicInteger();ProxyFactory pf=new ProxyFactory((FlowNode<?>)c->"ok");pf.addAdvice((org.aopalliance.intercept.MethodInterceptor)inv->{invoked.incrementAndGet();return inv.proceed();});
             context.getBeanFactory().registerSingleton("work",pf.getProxy());context.refresh();
             try(var e=new DefaultFlowEngine(new SpringNodeResolver(context.getBeanFactory()),new SpelConditionEvaluator())){e.register("flow",md("start([开始]) --> work --> finish([结束])"));assertTrue(e.execute("flow",null).succeeded());assertEquals(1,invoked.get());}
         }
@@ -149,7 +149,7 @@ class FlowEngineTest {
     }
     @Test void lateResultCannotOverwriteTimeout() throws Exception {
         var started=new CountDownLatch(1);var release=new CountDownLatch(1);var exited=new CountDownLatch(1);
-        FlowNode stubborn=c->{started.countDown();try{while(true){try{release.await();break;}catch(InterruptedException ignored){}}return "late";}finally{exited.countDown();}};
+        FlowNode<?> stubborn=c->{started.countDown();try{while(true){try{release.await();break;}catch(InterruptedException ignored){}}return "late";}finally{exited.countDown();}};
         var cfg=config(1,1,Duration.ofMillis(40),Duration.ofMillis(100));
         try(var e=new DefaultFlowEngine(id->stubborn,new SpelConditionEvaluator(),cfg)){
             e.register("flow",md("start([开始]) --> work --> finish([结束])"));var callers=Executors.newSingleThreadExecutor();
@@ -169,7 +169,7 @@ class FlowEngineTest {
         }
     }
     @Test void skippedAncestorAndSuccessfulNullDiffer(){
-        FlowNode after=c->{assertFalse(c.ancestorOutput("no").present());assertTrue(c.ancestorOutput("yes").present());assertNull(c.ancestorValue("yes",Object.class));return 1;};
+        FlowNode<?> after=c->{assertFalse(c.ancestorOutput("no").present());assertTrue(c.ancestorOutput("yes").present());assertNull(c.ancestorValue("yes",Object.class));return 1;};
         try(var e=engine(Map.of("yes",c->null,"no",c->2,"after",after))){e.register("choice",conditional("true","default").replace("merge --> finish", "merge --> after --> finish"));assertTrue(e.execute("choice",null).succeeded());}
     }
     @Test void nestedInactiveBranchDoesNotBlock(){

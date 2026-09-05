@@ -29,12 +29,12 @@ class RuntimeBoundaryTest {
     private static EngineConfig config(int threads,int queue,int slots,int depth,int total,int children) {
         return new EngineConfig(threads,queue,16,slots,depth,total,children,Duration.ofSeconds(4),Duration.ofSeconds(4),Duration.ofSeconds(8),Duration.ofMillis(50));
     }
-    private static DefaultFlowEngine engine(Map<String,FlowNode> nodes,EngineConfig config) {
+    private static DefaultFlowEngine engine(Map<String,FlowNode<?>> nodes,EngineConfig config) {
         return new DefaultFlowEngine(nodes::get,CONDITIONS,config);
     }
     @Test void rejectionCancelsQueuedWorkAndCapacityRecovers() throws Exception {
         var started=new CountDownLatch(1);var release=new CountDownLatch(1);var unwanted=new AtomicInteger();
-        FlowNode work=c->{if("block".equals(c.input())){started.countDown();release.await();}return c.input();};
+        FlowNode<?> work=c->{if("block".equals(c.input())){started.countDown();release.await();}return c.input();};
         var callers=Executors.newSingleThreadExecutor();
         try(var e=engine(Map.of("work",work,"queued",c->unwanted.incrementAndGet()),config(1,1,4,8,64,16))) {
             e.register("serial",SERIAL);
@@ -51,7 +51,7 @@ class RuntimeBoundaryTest {
     }
     @Test void nestedTasksShareAncestorInFlightLimit() {
         var active=new AtomicInteger();var peak=new AtomicInteger();var calls=new AtomicInteger();var pairs=new CyclicBarrier(2);
-        FlowNode work=c->{int current=active.incrementAndGet();peak.accumulateAndGet(current,Math::max);try{pairs.await(3,TimeUnit.SECONDS);calls.incrementAndGet();return c.executionId();}finally{active.decrementAndGet();}};
+        FlowNode<?> work=c->{int current=active.incrementAndGet();peak.accumulateAndGet(current,Math::max);try{pairs.await(3,TimeUnit.SECONDS);calls.incrementAndGet();return c.executionId();}finally{active.decrementAndGet();}};
         try(var e=engine(Map.of("work",work),config(8,32,2,8,64,16))) {
             StringBuilder parent=new StringBuilder("start([s]) --> fork{\"+\"}\n");
             for(int i=0;i<6;i++)parent.append("fork --> child_").append(i).append("[[\"child\"]]\nchild_").append(i).append(" --> join{\"+\"}\n");
@@ -121,7 +121,7 @@ class RuntimeBoundaryTest {
     @ParameterizedTest @ValueSource(booleans={true,false})
     void exclusiveBranchContainingParallelRegionJoinsExactlyOnce(boolean selected) {
         var count=new ConcurrentHashMap<String,AtomicInteger>();
-        FlowNode work=c->{count.computeIfAbsent(c.nodeId(),k->new AtomicInteger()).incrementAndGet();return c.nodeId();};
+        FlowNode<?> work=c->{count.computeIfAbsent(c.nodeId(),k->new AtomicInteger()).incrementAndGet();return c.nodeId();};
         String graph="start([s]) --> choose{\"choose\"}\nchoose -->|\"selected\"| fork{\"+\"}\nchoose -->|\"default\"| work_else\nfork --> work_left\nfork --> work_right\nwork_left --> join{\"+\"}\nwork_right --> join\njoin --> merge{\"X\"}\nwork_else --> merge\nmerge --> work_end --> finish([f])";
         try(var e=engine(Map.of("work",work),config(4,16,4,8,64,16))) {
             e.register("flow",md(graph));var r=e.execute("flow",Map.of("selected",selected));assertTrue(r.succeeded(),r.errors().toString());

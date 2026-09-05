@@ -38,7 +38,7 @@ public class DemoApplication {
     }
 
     @Bean
-    FlowNode greet() {
+    FlowNode<String> greet() {
         return context -> "Hello, " + context.input(Map.class).get("name");
     }
 

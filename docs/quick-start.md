@@ -46,7 +46,7 @@ import io.github.mchgood.flow.spring.SpringNodeResolver;
 public class FlowConfiguration {
 
     @Bean
-    public FlowNode validateOrder() {
+    public FlowNode<Map<String, Object>> validateOrder() {
         return context -> {
             Map<?, ?> input = context.input(Map.class);
             return Map.of("valid", input.containsKey("amount"));
@@ -54,12 +54,12 @@ public class FlowConfiguration {
     }
 
     @Bean
-    public FlowNode autoProcess() {
+    public FlowNode<Map<String, Object>> autoProcess() {
         return context -> Map.of("processed", true);
     }
 
     @Bean
-    public FlowNode manualReview() {
+    public FlowNode<Map<String, Object>> manualReview() {
         return context -> Map.of("reviewRequired", true);
     }
 
@@ -189,7 +189,7 @@ engine.registerAll(Map.of(
 
 ```java
 @Bean
-public FlowNode saveOrder() {
+public FlowNode<Map<String, Object>> saveOrder() {
     return context -> {
         Map<?, ?> validation = context.ancestorValue(
             "validateOrder_before",
@@ -249,3 +249,19 @@ mvn -pl flow-engine-examples -am test
 
 - `flow-engine-examples/src/main/java/io/github/mchgood/flow/OrderExample.java`
 - `flow-engine-examples/src/test/java/io/github/mchgood/flow/OrderExampleTest.java`
+
+
+## 节点输出泛型
+
+业务节点应声明返回类型，如 `FlowNode<ValidationResult>`、`FlowNode<String>`，不要使用原始类型 `FlowNode`。无输出节点可用 `FlowNode<Void>` 并返回 null；如果输出本来就是动态结构，也可明确声明 `FlowNode<Object>`。
+
+```java
+public record ValidationResult(boolean valid) {}
+
+@Bean
+public FlowNode<ValidationResult> validateOrder() {
+    return context -> new ValidationResult(true);
+}
+```
+
+相应的下游读取使用 `context.ancestorValue("validateOrder", ValidationResult.class)`。不要把此 DTO 示例与前文按 Map 读取的示例混用。内部结果容器仍保存不同类型的对象，读取不兼容类型会抛 ClassCastException 并使调用节点失败；泛型不会让动态 Mermaid 图自动获得编译期类型检查。已有自定义 NodeResolver 的返回类型改为 `FlowNode<?>`，业务节点实现改为 `implements FlowNode<具体类型>`。

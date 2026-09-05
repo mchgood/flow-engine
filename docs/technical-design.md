@@ -72,9 +72,11 @@ flowchart TD
 
 ## 3. 对外 API 与接入
 
+业务输出契约使用 `FlowNode<O>`；NodeResolver 和内部图持有 `FlowNode<?>`，允许不同节点返回不同 DTO。O 仅约束业务节点实现的返回值，不引入输入映射，也不为 Mermaid 图提供跨节点的编译期类型检查。运行时 NodeRecord.value / NodeOutput.value 仍为 Object，下游通过 ancestorValue(id, Type.class) 校验类型；无输出节点使用 FlowNode<Void> 并返回 null。
+
 ```java
-public interface FlowNode {
-    Object execute(NodeContext context) throws Exception;
+public interface FlowNode<O> {
+    O execute(NodeContext context) throws Exception;
 }
 
 public interface NodeContext {
@@ -98,7 +100,7 @@ public interface FlowEngine extends AutoCloseable {
 }
 
 public interface NodeResolver {
-    FlowNode resolve(String beanName);
+    FlowNode<?> resolve(String beanName);
 }
 ```
 
@@ -108,7 +110,7 @@ ancestorOutput 指任意祖先的输出。非祖先访问抛出 ContextAccessExc
 
 ```java
 @Component("checkStock")
-public class CheckStockNode implements FlowNode {
+public class CheckStockNode implements FlowNode<StockCheckResult> {
     private final StockService stockService;
 
     public CheckStockNode(StockService stockService) {
@@ -116,7 +118,7 @@ public class CheckStockNode implements FlowNode {
     }
 
     @Override
-    public Object execute(NodeContext context) {
+    public StockCheckResult execute(NodeContext context) {
         OrderRequest request = context.input(OrderRequest.class);
         return stockService.check(request.productId());
     }

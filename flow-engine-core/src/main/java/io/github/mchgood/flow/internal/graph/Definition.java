@@ -48,7 +48,7 @@ public final class Definition {
      * @param ancestors 静态祖先节点 ID 集合
      */
     public record NodeSpec(String id, String label, String target, Type type,
-                           SourceLocation location, FlowNode bean, Set<String> ancestors) {}
+                           SourceLocation location, FlowNode<?> bean, Set<String> ancestors) {}
 
     /**
      * 传入图构造器的边描述；默认边没有编译条件。
@@ -85,7 +85,7 @@ public final class Definition {
         /**
          * 绑定的任务 Bean 引用；非任务节点为 null。
          */
-        public final FlowNode bean;
+        public final FlowNode<?> bean;
 
         /**
          * 不可修改的静态祖先 ID 集合。

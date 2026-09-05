@@ -17,6 +17,6 @@ public interface NodeResolver {
      * @return 可复用的业务节点；返回 null 将导致注册报 BEAN_NOT_FOUND
      * @throws io.github.mchgood.flow.exception.FlowException 无法解析或节点作用域不符合约定
      */
-    FlowNode resolve(String beanId);
+    FlowNode<?> resolve(String beanId);
 }
 

@@ -28,7 +28,7 @@ public final class SpringNodeResolver implements NodeResolver {
      * {@inheritDoc}
      * <p>非 singleton 报 BEAN_SCOPE_UNSUPPORTED；缺失、类型不匹配或容器解析失败报 BEAN_BINDING_ERROR。
      */
-    @Override public FlowNode resolve(String id){
+    @Override public FlowNode<?> resolve(String id){
         try {
             String target=ScopedProxyUtils.getTargetBeanName(id);
             if(!factory.isSingleton(id)||(factory.containsBean(target)&&!factory.isSingleton(target)))throw new FlowException("BEAN_SCOPE_UNSUPPORTED",id);

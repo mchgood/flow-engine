@@ -38,7 +38,7 @@ Spring Boot 应用引入 Starter（尚未发布 Maven Central，请先在源码�
 
 ```java
 @Bean
-FlowNode validateOrder() {
+FlowNode<Map<String, Object>> validateOrder() {
     return context -> Map.of("valid", true);
 }
 ```
@@ -134,4 +134,4 @@ mvn verify
 
 执行 `mvn verify` 后运行 `python3 scripts/check-coverage.py`。聚合 HTML 报告位于 `flow-engine-coverage/target/site/jacoco-aggregate/index.html`；CI 保存测试报告与覆盖率报告，并检查行覆盖率至少 95%、分支覆盖率至少 88%。
 
-本次审查的 200 个测试用例全部通过，含 36 张固定种子生成 DAG 的独立结果对照。分类、断言范围与仍未覆盖的风险见 [测试覆盖审查](docs/testing-coverage.md)。测试数量和覆盖率都不等于所有并发交错已经验证。
+当前 205 个测试用例全部通过，含 36 张固定种子生成 DAG 的独立结果对照。分类、断言范围与仍未覆盖的风险见 [测试覆盖审查](docs/testing-coverage.md)。测试数量和覆盖率都不等于所有并发交错已经验证。

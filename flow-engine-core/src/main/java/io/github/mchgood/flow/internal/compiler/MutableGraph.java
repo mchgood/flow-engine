@@ -19,7 +19,7 @@ final class MutableGraph {
      */
     static final class Node {
         final String id,label,target; final SourceLocation location;
-        Type type; FlowNode bean;
+        Type type; FlowNode<?> bean;
         final List<Edge> in=new ArrayList<>(),out=new ArrayList<>();
         final Set<String> ancestors=new LinkedHashSet<>();
         Node(String id,String label,String target,Type type,SourceLocation location){this.id=id;this.label=label;this.target=target;this.type=type;this.location=location;}
