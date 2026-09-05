@@ -9,6 +9,9 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * 验证依赖方向和编译图不可修改，防止包职责边界退化。
+ */
 class PackageBoundaryTest {
     @Test
     void dependenciesFollowPackageBoundaries() throws Exception {

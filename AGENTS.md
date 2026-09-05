@@ -50,6 +50,14 @@ Do not silently broaden the Mermaid subset. Unsupported Mermaid syntax must fail
 - Prefer explicit error codes over parsing exception messages in tests and public behavior.
 - Public API changes require corresponding documentation and tests.
 
+## Documentation requirements
+
+- Use Chinese Javadoc for named production types, including nested compiler and runtime types. Describe responsibility, lifecycle, thread safety and important limitations instead of repeating the type name.
+- Document public methods and constructors, parameters, return/null behavior and meaningful error codes. Overrides may inherit a documented interface contract and add implementation limits.
+- Document record components with @param and explain shallow versus deep immutability. Explain configuration units, defaults and valid ranges.
+- Explain scheduler locks, state transitions, physical task exit, cancellation and branch propagation where the implementation is non-obvious. Do not claim behavior the code does not provide.
+- Keep package-info.java aligned with package responsibility. Review annotations alongside behavior changes.
+
 ## Testing expectations
 
 Run before submitting changes:

@@ -24,6 +24,10 @@ import java.util.concurrent.atomic.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 @Timeout(8)
+
+/**
+ * 核心流程行为与 Spring 适配集成测试，覆盖解析、并发、失败、上下文与生命周期。
+ */
 class FlowEngineTest {
     static String md(String body){return "# Flow\n\n```mermaid\nflowchart TD\n"+body+"\n```\n";}
     static EngineConfig config(int threads,int inFlight,Duration nodeTimeout,Duration flowTimeout){return new EngineConfig(threads,16,8,inFlight,8,64,16,nodeTimeout,nodeTimeout,flowTimeout,Duration.ofMillis(20));}

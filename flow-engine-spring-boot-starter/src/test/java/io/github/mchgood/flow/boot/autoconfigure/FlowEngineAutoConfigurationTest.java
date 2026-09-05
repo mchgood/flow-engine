@@ -22,6 +22,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+/**
+ * 验证 Starter 默认装配、参数校验、用户覆盖、发现入口及关闭语义。
+ */
 class FlowEngineAutoConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner()
         .withConfiguration(AutoConfigurations.of(FlowEngineAutoConfiguration.class));
