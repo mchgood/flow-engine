@@ -40,27 +40,30 @@
 | 一行多语句 | 147 | 128 | 275 |
 | 单行 > 120 字符 | 103 | 159 | 262 |
 | 通配符 import | 19 处 / 9 文件 | 42 处 / 11 文件 | 61 处 / 20 文件 |
-| 含 <=2 字符标识符的文件 | 8 | 7 | **15**（60 个不同标识符） |
+| 含 <=2 字符标识符的文件 | 9 | 8 | **17**（63 个不同标识符） |
 
-`api`、`spi`、`exception`、`result`、`node/FlowNode.java`、全部 `package-info.java`、`boot/autoconfigure/*`、`OrderExample.java` 无短名，只需格式化。
+`api`、`spi`、`exception`、`result`、`node/FlowNode.java`、全部 `package-info.java`、`boot/autoconfigure/*` 无短名，只需格式化。
+> 首轮盘点（用形参/局部声明正则）漏掉了 **curried lambda 与多参 lambda** 里的短名（如 `()->c->1`、`forEach((id,n)->...)`、`(k,v)->v-1`），经 reviewer 复核补上 3 个：`OrderExample.java` 的 `n`、`SpringResolverContractTest.java` 的 `c`、`FlowCompiler.java:123` 的 `v`。故合计是 **17 个文件 / 63 个标识符**，而不是最初说的 15/60。后续扫描都以「所有紧邻 `->` 的标识符」为准，不再只看声明位置。
 
 含短名的 15 个文件与各自的短名清单（实测，Task 1 Step 3 会把它固化成 JSON）：
 
 ```
 core/main  config/EngineConfig.java            d
-core/main  internal/compiler/FlowCompiler.java b l c d a e n s x q p
+core/main  internal/compiler/FlowCompiler.java b l c d a e n s x q p v（`(k,v)->v-1`，`k` 在白名单内）
 core/main  internal/compiler/MutableGraph.java in (out 同源)
 core/main  internal/graph/Definition.java      in out
 core/main  node/NodeContext.java               r
 core/main  runtime/DefaultFlowEngine.java      t r d n e ex p a x f w
 spring/main SpelConditionEvaluator.java        e c (另有常量 ALLOWED、局部 out)
 spring/main SpringNodeResolver.java            e
+examples/main OrderExample.java                n（`(id,n)->`，NodeRecord）
 core/test  PackageBoundaryTest.java            p
 core/test  CompilerContractTest.java           n c g ex
 core/test  ValueContractTest.java              v d
 core/test  FlowNodeTypeContractTest.java       d
 core/test  RuntimeBoundaryTest.java            e c x r a b n t l ex
 spring/test FlowEngineTest.java                n e c a b r x pf fs bd ex
+spring/test SpringResolverContractTest.java    c（`()->c->1`，FlowNode lambda 参数）
 examples/test OrderExampleTest.java            r
 ```
 
@@ -131,7 +134,8 @@ print('\nfiles=%(files)d lines=%(lines)d long=%(long)d multi=%(multi)d '
 
 Run: `python3 /tmp/style-scan.py .`
 
-Expected: 末行 `files=50 lines=3237 long=262 multi=275 nobrace=97 star=61`（`lines` 允许 +-5 浮动，其余四项必须完全一致）。若 `nobrace` 或 `star` 对不上，先修正正则再继续，不要跳过——后续所有「清零」验收都依赖这个计数器。
+Expected: 末行 `files=50 lines=3237 long=262 multi=275 nobrace=97 star=61`（`lines` 允许 +-5 浮动，其余四项必须完全一致）。若 `nobrace` 或 `star` 对不上，先修正正则再继续，不要跳过。
+> **`nobrace` 只是趋势指标，不是验收闸门**（reviewer 实测确认）：补大括号后控制流头会被 120 列规则折行，此时正则既可能对已合规的折行 `if` 误报、也可能漏掉「`if` 头与其语句分行」的缺括号形态。因此后续任务**不得**用 `nobrace=0` 作为「已补齐大括号」的证明；权威闸门是 Task 10 checkstyle 的 `NeedBraces` + 205 个测试。`long`/`multi`/`star` 三项仍可作为硬性清零指标。
 
 - [ ] **Step 3: 写术语表的可执行形式 `/tmp/rename-map.json`**
 
@@ -147,7 +151,8 @@ Expected: 末行 `files=50 lines=3237 long=262 multi=275 nobrace=97 star=61`（`
   },
   "flow-engine-core/src/main/java/io/github/mchgood/flow/internal/compiler/FlowCompiler.java": {
     "b": "block", "l": "lineIndex", "c": "cursor", "d": "declaration", "e": "edge",
-    "n": "node", "n_walk": "current", "s": "shared", "q": "queue", "p": "position",
+    "n": "node", "n_walk": "current", "v": "remaining",
+    "s": "shared", "q": "queue", "p": "position",
     "loc": "location", "ex": "exception", "x": "boundaryEdge",
     "a_link": "link", "a_start": "start",
     "ctor_s": "source", "ctor_l": "line", "ctor_n": "number",
@@ -194,6 +199,12 @@ Expected: 末行 `files=50 lines=3237 long=262 multi=275 nobrace=97 star=61`（`
   "flow-engine-examples/src/test/java/io/github/mchgood/flow/OrderExampleTest.java": {
     "r": "result"
   },
+  "flow-engine-examples/src/main/java/io/github/mchgood/flow/OrderExample.java": {
+    "n": "nodeRecord"
+  },
+  "flow-engine-spring/src/test/java/io/github/mchgood/flow/spring/SpringResolverContractTest.java": {
+    "c": "context"
+  },
   "flow-engine-spring/src/test/java/io/github/mchgood/flow/FlowEngineTest.java": {
     "n": "node", "e": "flowEngine", "c": "context", "r": "result", "x": "exception",
     "a": "lowAmount", "b": "highAmount", "pf": "proxyFactory", "fs": "futures",
@@ -206,7 +217,7 @@ Expected: 末行 `files=50 lines=3237 long=262 multi=275 nobrace=97 star=61`（`
 
 > **为什么 `style-equiv.py` 不做「旧名 -> 新名」的正向替换**：同一个旧名在不同作用域会映射到不同新名（`e` -> `execution` 与 `exception`），扁平的整词正则无法区分作用域，正向替换必然出错。脚本改用**词表擦除**策略：把词表里所有标识符（旧名基础形 + 全部新名）在两侧同时替换为同一个占位符 `NAME`，这样比较的是「结构、字面量、数值、方法名、调用顺序」，与改名完全解耦。改错名由编译器、测试与 Task 10 的 checkstyle 命名规则兜底。
 
-`GenericNodeIntegrationTest`、`SpelContractTest`、`SpringResolverContractTest`、starter 与 examples 的 main 文件**无短名**，不出现在 JSON 里，只需格式化与展开 import。
+`GenericNodeIntegrationTest`、`SpelContractTest`、starter 与 examples 的其余 main 文件**无短名**，不出现在 JSON 里，只需格式化与展开 import。（`SpringResolverContractTest` 与 `OrderExample` 经复核有 1 个短名，已入表。）
 
 - [ ] **Step 4: 写 token 级语义等价校验脚本 `/tmp/style-equiv.py`**
 
@@ -791,7 +802,7 @@ python3 /tmp/style-scan.py flow-engine-core/src/main/java/io/github/mchgood/flow
 python3 /tmp/style-scan.py flow-engine-core/src/main/java/io/github/mchgood/flow/node
 ```
 
-Expected: 六条命令的末行**全部**是 `long=0 multi=0 nobrace=0 star=0`。
+Expected: 六条命令的末行**全部**是 `long=0 multi=0 star=0`，且 `nobrace` 相比整改前明显下降。**不要**把 `nobrace=0` 当作通过条件（见 Task 1 Step 2 的说明）。
 
 - [ ] **Step 11: 提交**
 
@@ -1082,6 +1093,7 @@ import static io.github.mchgood.flow.internal.compiler.MutableGraph.Node;
 | 配对查找 lambda | `order.stream().filter(n->n!=split&&post.get(split).contains(n))` | `order.stream().filter(node -> node != split && post.get(split).contains(node))` |
 | `walk` | `Deque<Node> q=new ArrayDeque<>();q.add(node);` | `Deque<Node> queue = new ArrayDeque<>();` + `queue.add(node);` 拆两行；形参 `node` **保留不改**（已合规），`q.isEmpty()`/`q.remove()` -> `queue.` |
 | `walk` | `var n=q.remove()` / `for(var e:reverse?n.in:n.out)` / `q.add(reverse?e.from:e.to)` | `var current = queue.remove()` / `for (var edge : reverse ? current.incomingEdges : current.outgoingEdges)` / `queue.add(reverse ? edge.from : edge.to)`。局部用 `current` 而非 `node`，因为形参已占用 `node` |
+| 拓扑入度 lambda | `degrees.compute(e.to,(k,v)->v-1)` | `degrees.compute(edge.to, (node, remaining) -> remaining - 1)`；`k` 在白名单内**保留**，`v` -> `remaining` |
 | `merge` 形参 | `merge(Map<String,Decl> map,Decl d)` | `merge(Map<String, Decl> map, Decl declaration)`；`map` 是 3 字符且语义清楚，**保留**；体内 `d.` -> `declaration.` |
 | 拓扑/祖先循环 | `for(var n:order)` `for(var e:n.out)` `for(var n:nodes.values())` | `for (var node : order)` `for (var edge : node.outgoingEdges)` `for (var node : nodes.values())` |
 | 就绪队列 | `nodes.values().forEach(n->{degrees.put(n,n.in.size());if(n.in.isEmpty())ready.add(n);});` | `node` 形参 + 补 `{}` + 拆行 |
@@ -1129,7 +1141,7 @@ Expected: `EQUIV checked=5 failed=0`，退出码 0。
 
 Run: `python3 /tmp/style-scan.py flow-engine-core/src/main/java/io/github/mchgood/flow/internal | tail -3`
 
-Expected: 末行 `long=0 multi=0 nobrace=0 star=0`。
+Expected: 末行 `long=0 multi=0 star=0`（`nobrace` 仅作趋势参考，不作通过条件）。
 
 - [ ] **Step 13: 提交**
 
@@ -2075,6 +2087,8 @@ Expected: 打印 `IDENTICAL`，两个计数均为 **5**。
 | 旧 | 新 |
 | --- | --- |
 | `for(var id:new String[]{"missing","wrong"})assertEquals("BEAN_BINDING_ERROR",assertThrows(FlowException.class,()->resolver.resolve(id)).code());` | 补 `{}` 拆行；`id`、`"missing"`、`"wrong"`、`"BEAN_BINDING_ERROR"` 逐字保留 |
+| `ctx.registerBean("work",FlowNode.class,()->c->1)` | `() -> context -> 1`；`c` 是 curried lambda 的 `FlowNode` 参数，不在白名单内 |
+| `FlowNode<?> work() {return context->1;}` | 名字已合规，仅补空格 |
 | `import org.springframework.context.annotation.*;` | 按实际使用展开 |
 | `import static org.junit.jupiter.api.Assertions.*;` | `assertEquals` + `assertSame` + `assertThrows` + `assertTrue` |
 
@@ -2156,6 +2170,7 @@ Expected: 无输出。
 - 216 字符的长行按折行方向规则拆行
 - 单语句 `if` 补 `{}`
 - `@Bean` / `@Component` / `@Configuration` / `@SpringBootApplication` 等注解独占一行
+- `result.results().forEach((id,n)->...)` 里的 `n` -> `nodeRecord`（`NodeRecord`，`id` 在白名单内保留）；各 `@Bean` 方法里的 `ctx` 为 3 字符，**保留**
 
 **流程 Markdown 文本块、Mermaid 定义、Bean 名、`System.out.println` 的输出文本逐字保留**。
 
@@ -2192,9 +2207,9 @@ Expected: `EQUIV checked=6 failed=0`，退出码 0。
 
 Run: `python3 /tmp/style-scan.py . | tail -3`
 
-Expected: 末行 `files=50 long=0 multi=0 nobrace=0 star=0`。
+Expected: 末行 `files=50 long=0 multi=0 star=0`，且 `nobrace` 较整改前大幅下降（允许非零）。
 
-这是整个整改的核心验收点——五项指标里除 `files` 外全部归零。
+这是核心验收点之一；**大括号的权威证明是 Task 10 checkstyle 的 `NeedBraces` 零违规**，本计数器只提供趋势。
 
 - [ ] **Step 10: 提交**
 
@@ -2545,7 +2560,7 @@ BRANCH: <covered>/<total> = <pct>%; minimum 88%
 
 Run: `python3 /tmp/style-scan.py . | tail -3`
 
-Expected: `files=50 long=0 multi=0 nobrace=0 star=0`。
+Expected: `files=50 long=0 multi=0 star=0`（`nobrace` 允许非零，见 Task 1 Step 2）。
 
 - [ ] **Step 9: 全项目残留检查**
 
@@ -2593,7 +2608,7 @@ Expected: `git add` 后 `git status --short` 显示 `A  config/checkstyle/checks
 - [ ] `mvn -B verify` BUILD SUCCESS，`checkstyle-check` execution 零违规
 - [ ] 测试总数 **205**（98 + 84 + 22 + 1），`Failures: 0, Errors: 0, Skipped: 0`
 - [ ] `python3 scripts/check-coverage.py` 通过：LINE >= 95%、BRANCH >= 88%
-- [ ] `python3 /tmp/style-scan.py .` 末行 `files=50 long=0 multi=0 nobrace=0 star=0`
+- [ ] `python3 /tmp/style-scan.py .` 末行 `files=50 long=0 multi=0 star=0`（`nobrace` 仅趋势）
 - [ ] `python3 /tmp/style-equiv.py a97db33 <全部改动文件>` 输出 `failed=0`，`EXEMPT` 恰为 2 个文件
 - [ ] 8 处超长 Mermaid 字面量折行后经脚本验证 `IDENTICAL`（Task 6 Step 9 计 3 处、Task 8 Step 4 计 5 处）
 - [ ] 全项目 `grep` 无 `import .*\*;`
