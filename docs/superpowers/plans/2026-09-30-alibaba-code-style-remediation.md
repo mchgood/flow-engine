@@ -16,11 +16,13 @@
 - 覆盖率跌破门槛一律视为**改写引入的缺陷**，必须定位修复；**禁止下调阈值**（AGENTS.md 明令）。
 - 命名白名单**仅 5 个**：`i`、`j`、`k`（限局部变量与 lambda 参数）、`id`、`to`。其余 <=2 字符标识符一律语义化。
 - 不重命名任何**类型名**与**方法名**（`Decl`、`Parsed`、`Cursor`、`md(...)`、`config(...)`、`engine(...)`、`record(...)` 等全部保留）。
-- 不拆方法、不改控制流结构、不提魔法值为常量、不加 `final`、不改动任何 Javadoc 的**文字内容**、不改异常/日志/并发语义。
+- 不拆方法、不改控制流结构、不提魔法值为常量、不加 `final`、不改异常/日志/并发语义。
+- Javadoc 只随形参改名同步更新 `@param` 标签名（如 `loc` -> `location`），其余**文字内容**一律不动。
+- 按阿里规约【强制】条款补齐全部 **11 处** 缺失的 `@Override`（覆写方法必须标注）：core 测试 5 处（`PackageBoundaryTest` 2、`CompilerContractTest` 1、`RuntimeBoundaryTest` 2）+ `SpelConditionEvaluator` 内部类 6 处（`ReadOnlyMapAccessor` 5、守卫 `Map` 1）。除此之外**不新增**任何注解。
 - 单行 <= **120** 字符；缩进 **4** 空格；禁 Tab；文件末尾保留一个换行；换行符 **LF**。
 - 禁用通配符 import（含静态）；import 分组顺序 `io.github.mchgood` -> `org` -> `com` -> `java` -> `javax`（`com` 目前未使用，为将来依赖预留），静态 import 置底并按字典序。
 - 折行方向：二元运算符换到**下一行开头**；点号与逗号留在**上一行末尾**；第二行相对第一行缩进 4 空格。
-- 注解独占一行（`AnnotationLocation` 的 `allowSamelineSingleAnnotations=false`）。
+- 注解独占一行（`AnnotationLocation` 的三个 `allowSameline*` 属性全部置 `false`；10.21.4 没有 `allowSamelineSingleAnnotations` 这个属性，写错会让 `TreeWalker` 初始化失败）。
 - 代码中不得出现内联全限定类名，一律改为 import（已知 4 处，见 Task 4/6/8）。
 - 整改过程**只**新增 `docs/superpowers/**`，不改动 `docs/requirements.md`、`docs/technical-design.md`、`docs/quick-start.md`、`docs/spring-boot.md`、`docs/testing-coverage.md`、`README.md`。
 - 未经本计划明确列出的 git 操作一律不执行；不使用 `git commit --amend`、不 force push、不改 git config、不跳过 hook。
@@ -741,7 +743,7 @@ public record EngineConfig(int workerThreads, int queueCapacity, int maxConcurre
 - 一行多语句拆成多行
 - 一行多变量声明拆成多行，每个声明复制原有 Javadoc 文字（不改写、不新增内容）
 - 超 120 字符按折行方向规则换行
-- 注解移到独占一行（`@Override public X y(){` -> `@Override` 换行 + `public X y() {`）；**原本没有 `@Override` 的方法不要新增**
+- 注解移到独占一行（`@Override public X y(){` -> `@Override` 换行 + `public X y() {`）；本任务范围内**不新增** `@Override`（11 处缺失覆写分属 Task 6/7 的文件）
 - record 空体与接口空体统一写作 `{}`
 - 展开通配符 import
 
@@ -1558,7 +1560,7 @@ Expected: 无输出。
 
 正则 `"import\\s+(?:static\\s+)?io\\.github\\.mchgood\\.flow\\.([\\w.]+)"`、`Set.of("api", "node", "spi", "config", "result", "exception")`、`"internal."` / `"runtime."` / `"spring."` / `"internal.compiler."` 前缀、`"import org.springframework."`、文本块里的 Mermaid 定义、`Path.of("src/main/java/io/github/mchgood/flow")` **逐字保留**。
 
-匿名 `ConditionEvaluator` 的 `parse` / `evaluate` **不加 `@Override`**（原本没有，新增属语义外改动）。
+匿名 `ConditionEvaluator` 的 `parse` / `evaluate` 两个方法**补上 `@Override` 且独占一行**（用户裁决：按阿里规约【强制】补齐缺失覆写注解，全文共 11 处，本文件占 2 处）。
 
 - [ ] **Step 3: 改 `CompilerContractTest.java`**
 
@@ -1568,7 +1570,7 @@ Expected: 无输出。
 | `var g=c.compile("sample",md(...))` | `var definition = compiler.compile("sample", md(...))`；后续 `g.` -> `definition.` |
 | `var ex=assertThrows(FlowException.class,...)` | `var exception = assertThrows(FlowException.class, ...)`；后续 `ex.` -> `exception.` |
 | `map(n->n.id)` | `map(node -> node.id)` |
-| `parse(String text, SourceLocation loc)` | `parse(String text, SourceLocation location)` |
+| `parse(String text, SourceLocation loc)` | `parse(String text, SourceLocation location)`，方法上方**补 `@Override` 独占一行**（11 处缺失覆写之一） |
 | `import io.github.mchgood.flow.spi.*;` | `CompiledCondition` + `ConditionEvaluator` + `SourceLocation` |
 | `import org.junit.jupiter.params.provider.*;` | 按实际使用展开（`Arguments`、`CsvSource`、`MethodSource`、`ValueSource` 等，以编译结果为准） |
 | `import java.util.*;` | 按实际使用展开 |
@@ -1629,8 +1631,8 @@ Expected: 无输出。
 | --- | --- |
 | `try(var e=engine(...))` / `e.register(...)` / `e.execute(...)` / `e.registerAll(...)` | `try (var flowEngine = engine(...))` / `flowEngine.` |
 | `var r=e.execute(...)` | `var result = flowEngine.execute(...)`；后续 `r.status()` / `r.results()` / `r.succeeded()` / `r.errors()` / `r.physicalExitUnconfirmed()` -> `result.` |
-| `evaluate(CompiledCondition c,NodeContext n)` | `evaluate(CompiledCondition condition, NodeContext context)` |
-| `parse(String t,SourceLocation l)` | `parse(String text, SourceLocation location)` |
+| `evaluate(CompiledCondition c,NodeContext n)` | `evaluate(CompiledCondition condition, NodeContext context)`，方法上方**补 `@Override` 独占一行** |
+| `parse(String t,SourceLocation l)` | `parse(String text, SourceLocation location)`，方法上方**补 `@Override` 独占一行** |
 | `catch(InterruptedException x)` | `catch (InterruptedException exception)` |
 | `catch(InterruptedException ex)` | `catch (InterruptedException exception)` |
 | `var a=callers.submit(attempt);var b=callers.submit(attempt);` | `var first = callers.submit(attempt);` + `var second = callers.submit(attempt);` 两行 |
@@ -1847,7 +1849,7 @@ import java.util.Set;
 | `Map<String,Object> out=new LinkedHashMap<>();out.put("status",n.status().name());out.put("present",n.present());out.put("value",n.value());out.put("skipReason",n.skipReason());` | `out` -> `view`，`n.` -> `nodeRecord.`，拆成 5 行（R2/R3） |
 | `results.put(id,Collections.unmodifiableMap(out));` | `results.put(id, Collections.unmodifiableMap(view));` |
 | `Map<String,Object> guarded=new AbstractMap<>(){...}` | 补空格；匿名类两个方法体展开为多行 |
-| `public Set<Entry<String,Object>> entrySet(){return Collections.unmodifiableMap(results).entrySet();}` | 展开为多行；**不加 `@Override`**（原本没有） |
+| `public Set<Entry<String,Object>> entrySet(){return Collections.unmodifiableMap(results).entrySet();}` | 方法上方**补 `@Override` 独占一行**，方法体展开为多行 |
 | `@Override public Object get(Object id){if(!results.containsKey(id))throw new FlowException("CONTEXT_ACCESS_DENIED","Not an ancestor: "+id);return results.get(id);}` | 注解独占一行 + 补 `{}` + 拆行 |
 | `var context=SimpleEvaluationContext.forPropertyAccessors(new ReadOnlyMapAccessor(),DataBindingPropertyAccessor.forReadOnlyAccess()).withAssignmentDisabled().build();` | 按折行方向规则拆行（点号留上一行末尾） |
 | `context.setVariable("input",data.input());context.setVariable("results",guarded);` | 拆成两行 |
@@ -1869,27 +1871,32 @@ import java.util.Set;
     }
 ```
 
-改为（形参 `c` -> `context`；五个方法体逻辑逐字不变；**不加 `@Override`**）：
+改为（形参 `c` -> `context`；五个方法体逻辑逐字不变；五个方法全部**补上 `@Override` 且独占一行**——用户裁决补齐缺失覆写注解）：
 
 ```java
     private static final class ReadOnlyMapAccessor implements PropertyAccessor {
 
+        @Override
         public Class<?>[] getSpecificTargetClasses() {
             return new Class<?>[] {Map.class};
         }
 
+        @Override
         public boolean canRead(EvaluationContext context, Object target, String name) {
             return target instanceof Map<?, ?> map && map.containsKey(name);
         }
 
+        @Override
         public TypedValue read(EvaluationContext context, Object target, String name) {
             return new TypedValue(((Map<?, ?>) target).get(name));
         }
 
+        @Override
         public boolean canWrite(EvaluationContext context, Object target, String name) {
             return false;
         }
 
+        @Override
         public void write(EvaluationContext context, Object target, String name, Object value) {
             throw new FlowException("EXPRESSION_FORBIDDEN", "Read only");
         }
@@ -2593,6 +2600,8 @@ Expected: `git add` 后 `git status --short` 显示 `A  config/checkstyle/checks
 - [ ] 全项目单行长度 <= 120
 - [ ] 术语表内所有旧名在 `src/` 下零残留（`WORKER`、`pool`、`permits`、`ALLOWED`、`.in`、`.out`、`loc` 等）
 - [ ] 命名白名单外无 <=2 字符标识符
+- [ ] 全项目 `@Override` 相比基线新增恰好 11（core 测试 +5，spring main +6）
+- [ ] `@Override` 全部独占一行，无 `@Override public` 同行形态
 - [ ] `git log --oneline` 显示 9 个新 commit（Task 2-10），每个独立可编译可测试
 - [ ] `docs/requirements.md`、`docs/technical-design.md`、`docs/quick-start.md`、`docs/spring-boot.md`、`docs/testing-coverage.md`、`README.md`、`.github/workflows/ci.yml` 均**未被改动**（`git diff a97db33 --stat -- docs README.md .github` 只显示 `docs/superpowers/` 下的新增）
 - [ ] `AGENTS.md` 只新增了 Step 7 那一段闸门说明

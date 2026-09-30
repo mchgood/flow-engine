@@ -46,11 +46,12 @@
 - 不拆分方法、不改变控制流结构、不提取公共方法。
 - 不把魔法值提取为常量（`EngineConfig.defaults()` 里的 `8, 128, 64, ...` 保持原样）。
 - 不添加 `final`、不调整集合初始化容量。
-- 不改动任何 Javadoc 的文字内容（仅在其所在行需要折行时按 R5 处理）。
+- 不改动 Javadoc 的文字内容（仅在其所在行需要折行时按 R5 处理，或随形参改名同步更新 `@param` 标签名）。
 - 不改动异常处理、日志、并发、事务语义。
 - 不引入 PMD / P3C 规则集。
 - 不改动 `docs/*.md` 与 `README.md` 中的技术描述；已核实文档内 13 个 `java` 代码块均已符合规范，无需改动。
 - 不重命名任何类型名、方法名（`Decl`、`Parsed`、`Cursor`、`md(...)`、`config(...)`、`engine(...)` 等全部保留）。
+- **例外（用户裁决，2026-09-30）**：补齐全部缺失的 `@Override`。阿里规约【强制】要求「所有覆写方法必须加 `@Override` 注解」，此项虽超出「格式+命名」字面边界，但 `@Override` 是无害注解、不改变字节码行为，且是原诉求「符合阿里规范」的一部分，故纳入范围。已核实全项目缺失 **11 处**：core 测试 5 处（`PackageBoundaryTest` 的匿名 `ConditionEvaluator` 2、`CompilerContractTest` 的匿名 `ConditionEvaluator` 1、`RuntimeBoundaryTest` 的匿名 `ConditionEvaluator` 2）、`SpelConditionEvaluator` 内部类 6 处（`ReadOnlyMapAccessor` 5、守卫 `AbstractMap` 的 `entrySet` 1）。除此之外仍不新增任何注解。
 - 不启用 `EmptyLineSeparator`、`MissingJavadoc*`、`FinalLocalVariable`、`MagicNumber`、`AbbreviationAsWordInName`、`DeclarationOrder`（churn 过大或误报率高）。
 
 ## 3. 整改规则清单
@@ -68,6 +69,7 @@
 | R9 | 4 空格缩进、禁用 Tab、文件末尾保留换行、左括号行尾 / 右括号规则 | 【强制】 | 全量 |
 | R10 | 长整型字面量使用大写 `L`；修饰符顺序符合 JLS；数组声明用 `String[] args` 形式 | 【强制】 | 全量扫描 |
 | R11 | 简写标识符语义化，禁止无意义单字母与拼音缩写 | 【强制】 | 见第 4 节术语表 |
+| R13 | 覆写方法必须加 `@Override` 注解，且注解独占一行 | 【强制】 | 补齐 11 处缺失覆写注解（见 §2.2 例外条款） |
 | R12 | 代码中不得出现内联全限定类名，一律改为 import | 【推荐】 | 已实测 4 处：`ValueContractTest` 的 `java.util.stream.IntStream` ×2、`FlowCompiler` 的 `java.security.NoSuchAlgorithmException`、`GenericNodeIntegrationTest` 的 `org.aopalliance.intercept.MethodInterceptor` |
 
 ### 3.1 R5 折行的特殊约定
@@ -384,6 +386,7 @@ commit 1 单独存在的原因：`in`/`out` → `incomingEdges`/`outgoingEdges` 
 - [ ] `python3 scripts/check-coverage.py` 通过，LINE ≥ 95%、BRANCH ≥ 88%
 - [ ] §6.3 token 等价校验对 50 个文件全部通过（8 处白名单已人工复核）
 - [ ] 全项目 `grep` 无 `import .*\*;`
+- [ ] 全项目 `@Override` 相比基线新增恰好 11 处，且均独占一行
 - [ ] 全项目单行长度 ≤ 120
 - [ ] 术语表内所有旧名在 `src/` 下零残留
 - [ ] 6 个 commit 按 §6.2 划分，每个 commit 独立可编译可测试
