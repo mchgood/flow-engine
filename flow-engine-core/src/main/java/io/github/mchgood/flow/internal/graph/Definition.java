@@ -93,16 +93,21 @@ public final class Definition {
         public final Set<String> ancestors;
 
         /**
-         * 不可修改的入边、出边邻接表。
+         * 不可修改的入边邻接表。
          */
-        public final List<Edge> in, out;
+        public final List<Edge> incomingEdges;
+
+        /**
+         * 不可修改的出边邻接表。
+         */
+        public final List<Edge> outgoingEdges;
 
         private Node(NodeSpec spec, List<Edge> incoming, List<Edge> outgoing) {
             id = spec.id(); label = spec.label(); target = spec.target();
             type = spec.type(); location = spec.location(); bean = spec.bean();
             ancestors = Collections.unmodifiableSet(new LinkedHashSet<>(spec.ancestors()));
-            in = Collections.unmodifiableList(incoming);
-            out = Collections.unmodifiableList(outgoing);
+            incomingEdges = Collections.unmodifiableList(incoming);
+            outgoingEdges = Collections.unmodifiableList(outgoing);
         }
     }
 
@@ -177,10 +182,11 @@ public final class Definition {
         Map<String, List<Edge>> incoming = new HashMap<>();
         Map<String, List<Edge>> outgoing = new HashMap<>();
         for (NodeSpec spec : orderedSpecs) {
-            List<Edge> in = new ArrayList<>(), out = new ArrayList<>();
-            incoming.put(spec.id(), in);
-            outgoing.put(spec.id(), out);
-            compiled.put(spec.id(), new Node(spec, in, out));
+            List<Edge> incomingEdges = new ArrayList<>();
+            List<Edge> outgoingEdges = new ArrayList<>();
+            incoming.put(spec.id(), incomingEdges);
+            outgoing.put(spec.id(), outgoingEdges);
+            compiled.put(spec.id(), new Node(spec, incomingEdges, outgoingEdges));
         }
         for (EdgeSpec spec : edges) {
             Edge edge = new Edge(spec, compiled);

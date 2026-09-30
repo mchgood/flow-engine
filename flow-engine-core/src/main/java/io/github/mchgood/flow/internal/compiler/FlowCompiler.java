@@ -100,34 +100,34 @@ public final class FlowCompiler {
         for(int i=0;i<links.size();i++){
             var a=links.get(i);Node from=nodes.get(a[0]),to=nodes.get(a[1]);var e=new Edge(from,to,a[2],locations.get(i));
             if(from==to||!edges.add(e.id))throw error("DUPLICATE_OR_SELF_EDGE",e.location,e.id);
-            from.out.add(e);to.in.add(e);
+            from.outgoingEdges.add(e);to.incomingEdges.add(e);
         }
         Node start=nodes.get("start"),finish=nodes.get("finish");
-        if(start==null||finish==null||!start.in.isEmpty()||start.out.isEmpty()||!finish.out.isEmpty()||finish.in.isEmpty())throw new FlowException("INVALID_ENDPOINTS",id);
+        if(start==null||finish==null||!start.incomingEdges.isEmpty()||start.outgoingEdges.isEmpty()||!finish.outgoingEdges.isEmpty()||finish.incomingEdges.isEmpty())throw new FlowException("INVALID_ENDPOINTS",id);
         if(nodes.values().stream().noneMatch(n->n.type==Type.TASK||n.type==Type.CALL_FLOW))throw new FlowException("EMPTY_FLOW",id);
         for(var n:nodes.values()){
             if(n.type==Type.XOR_SPLIT||n.type==Type.AND_SPLIT){
-                if(n.in.size()>=2&&n.out.size()==1)n.type=n.type==Type.XOR_SPLIT?Type.XOR_JOIN:Type.AND_JOIN;
-                else if(n.in.size()!=1||n.out.size()<2)throw error("GATEWAY_DEGREE",n.location,n.id);
+                if(n.incomingEdges.size()>=2&&n.outgoingEdges.size()==1)n.type=n.type==Type.XOR_SPLIT?Type.XOR_JOIN:Type.AND_JOIN;
+                else if(n.incomingEdges.size()!=1||n.outgoingEdges.size()<2)throw error("GATEWAY_DEGREE",n.location,n.id);
             }
             if(n.type==Type.XOR_SPLIT){
-                if(n.out.size()>32)throw error("DEFINITION_LIMIT",n.location,"Gateway edge limit");
-                long defaults=n.out.stream().filter(Edge::fallback).count();
+                if(n.outgoingEdges.size()>32)throw error("DEFINITION_LIMIT",n.location,"Gateway edge limit");
+                long defaults=n.outgoingEdges.stream().filter(Edge::fallback).count();
                 if(defaults>1)throw error("MULTIPLE_DEFAULTS",n.location,n.id);
-                for(var e:n.out){if(e.text==null)throw error("MISSING_CONDITION",e.location,e.id);if(!e.fallback())e.condition=evaluator.parse(e.text,e.location);}
-            } else if(n.out.stream().anyMatch(e->e.text!=null))throw error("CONDITION_NOT_ALLOWED",n.location,n.id);
+                for(var e:n.outgoingEdges){if(e.text==null)throw error("MISSING_CONDITION",e.location,e.id);if(!e.fallback())e.condition=evaluator.parse(e.text,e.location);}
+            } else if(n.outgoingEdges.stream().anyMatch(e->e.text!=null))throw error("CONDITION_NOT_ALLOWED",n.location,n.id);
         }
         Map<Node,Integer> degrees=new IdentityHashMap<>();Deque<Node> ready=new ArrayDeque<>();
-        nodes.values().forEach(n->{degrees.put(n,n.in.size());if(n.in.isEmpty())ready.add(n);});
+        nodes.values().forEach(n->{degrees.put(n,n.incomingEdges.size());if(n.incomingEdges.isEmpty())ready.add(n);});
         List<Node> order=new ArrayList<>();
-        while(!ready.isEmpty()){var n=ready.remove();order.add(n);for(var e:n.out)if(degrees.compute(e.to,(k,v)->v-1)==0)ready.add(e.to);}
+        while(!ready.isEmpty()){var n=ready.remove();order.add(n);for(var e:n.outgoingEdges)if(degrees.compute(e.to,(k,v)->v-1)==0)ready.add(e.to);}
         if(order.size()!=nodes.size())throw new FlowException("GRAPH_CYCLE",id);
         Set<Node> forward=walk(start,false,null),backward=walk(finish,true,null);
         if(forward.size()!=nodes.size()||backward.size()!=nodes.size())throw new FlowException("UNREACHABLE_NODE",id);
-        for(var n:order)for(var e:n.in){n.ancestors.addAll(e.from.ancestors);n.ancestors.add(e.from.id);}
+        for(var n:order)for(var e:n.incomingEdges){n.ancestors.addAll(e.from.ancestors);n.ancestors.add(e.from.id);}
         validateExclusiveRegions(order,finish);
         for(var n:nodes.values())if(n.type==Type.TASK){n.bean=resolver.resolve(n.target);if(n.bean==null)throw error("BEAN_NOT_FOUND",n.location,n.target);}
-        try {return new Definition(id,HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(markdown.getBytes(StandardCharsets.UTF_8))),order.stream().map(n -> new Definition.NodeSpec(n.id,n.label,n.target,n.type,n.location,n.bean,n.ancestors)).toList(),nodes.values().stream().flatMap(n -> n.out.stream()).map(e -> new Definition.EdgeSpec(e.from.id,e.to.id,e.text,e.location,e.condition)).toList());}
+        try {return new Definition(id,HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(markdown.getBytes(StandardCharsets.UTF_8))),order.stream().map(n -> new Definition.NodeSpec(n.id,n.label,n.target,n.type,n.location,n.bean,n.ancestors)).toList(),nodes.values().stream().flatMap(n -> n.outgoingEdges.stream()).map(e -> new Definition.EdgeSpec(e.from.id,e.to.id,e.text,e.location,e.condition)).toList());}
         catch(java.security.NoSuchAlgorithmException e){throw new IllegalStateException(e);}
     }
 
@@ -139,24 +139,24 @@ public final class FlowCompiler {
     private void validateExclusiveRegions(List<Node> order,Node finish){
         Map<Node,Set<Node>> post=new IdentityHashMap<>();
         for(int i=order.size()-1;i>=0;i--){var n=order.get(i);Set<Node> s=new HashSet<>();
-            if(!n.out.isEmpty()){s.addAll(post.get(n.out.get(0).to));for(var e:n.out)s.retainAll(post.get(e.to));}s.add(n);post.put(n,s);
+            if(!n.outgoingEdges.isEmpty()){s.addAll(post.get(n.outgoingEdges.get(0).to));for(var e:n.outgoingEdges)s.retainAll(post.get(e.to));}s.add(n);post.put(n,s);
         }
         Set<Node> paired=new HashSet<>();
         for(var split:order)if(split.type==Type.XOR_SPLIT){
             Node join=order.stream().filter(n->n!=split&&post.get(split).contains(n)).findFirst().orElse(null);
             if(join==null||join.type!=Type.XOR_JOIN||!paired.add(join))throw error("GATEWAY_STRUCTURE_INVALID",split.location,split.id);
             Set<Node> union=new HashSet<>();
-            for(var e:split.out){
+            for(var e:split.outgoingEdges){
                 Set<Node> region=walk(e.to,false,join);
                 for(var n:region)if(!union.add(n))throw error("GATEWAY_STRUCTURE_INVALID",n.location,"Branches overlap before join");
                 for(var n:region){
-                    if(n.in.stream().anyMatch(x->x.from!=split&&!region.contains(x.from)))throw error("GATEWAY_STRUCTURE_INVALID",n.location,"External branch entry");
-                    if(n.out.stream().anyMatch(x->x.to!=join&&!region.contains(x.to)))throw error("GATEWAY_STRUCTURE_INVALID",n.location,"External branch exit");
+                    if(n.incomingEdges.stream().anyMatch(x->x.from!=split&&!region.contains(x.from)))throw error("GATEWAY_STRUCTURE_INVALID",n.location,"External branch entry");
+                    if(n.outgoingEdges.stream().anyMatch(x->x.to!=join&&!region.contains(x.to)))throw error("GATEWAY_STRUCTURE_INVALID",n.location,"External branch exit");
                 }
-                long exits=e.to==join?1:region.stream().flatMap(n->n.out.stream()).filter(x->x.to==join).count();
+                long exits=e.to==join?1:region.stream().flatMap(n->n.outgoingEdges.stream()).filter(x->x.to==join).count();
                 if(exits!=1)throw error("GATEWAY_STRUCTURE_INVALID",split.location,"Parallel branch must join before XOR join");
             }
-            if(join.in.stream().anyMatch(e->e.from!=split&&!union.contains(e.from)))throw error("GATEWAY_STRUCTURE_INVALID",join.location,"Unrelated join input");
+            if(join.incomingEdges.stream().anyMatch(e->e.from!=split&&!union.contains(e.from)))throw error("GATEWAY_STRUCTURE_INVALID",join.location,"Unrelated join input");
         }
         for(var n:order)if(n.type==Type.XOR_JOIN&&!paired.contains(n))throw error("GATEWAY_STRUCTURE_INVALID",n.location,"Unpaired XOR join");
     }
@@ -166,7 +166,7 @@ public final class FlowCompiler {
      */
     private static Set<Node> walk(Node node,boolean reverse,Node stop){
         Set<Node> result=new HashSet<>();Deque<Node> q=new ArrayDeque<>();q.add(node);
-        while(!q.isEmpty()){var n=q.remove();if(n==stop||!result.add(n))continue;for(var e:reverse?n.in:n.out)q.add(reverse?e.from:e.to);}return result;
+        while(!q.isEmpty()){var n=q.remove();if(n==stop||!result.add(n))continue;for(var e:reverse?n.incomingEdges:n.outgoingEdges)q.add(reverse?e.from:e.to);}return result;
     }
 
     /**

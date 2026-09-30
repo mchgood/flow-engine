@@ -166,7 +166,7 @@ public final class DefaultFlowEngine implements FlowEngine {
         final Execution execution;final Node spec;int remaining,active;NodeStatus status=NodeStatus.PENDING;
         Instant started,ended;long deadline=Long.MAX_VALUE;String skip,selected;Object value;FlowError error;
         Work work;Execution child;boolean submitted;final Set<String> resolved=new HashSet<>();
-        RuntimeNode(Execution e,Node n){execution=e;spec=n;remaining=n.in.size();}
+        RuntimeNode(Execution e,Node n){execution=e;spec=n;remaining=n.incomingEdges.size();}
         NodeRecord record(){return new NodeRecord(spec.id,spec.target,spec.type.name(),status,status==NodeStatus.SUCCEEDED,value,skip,error,started,ended,selected);}
     }
 
@@ -185,7 +185,7 @@ public final class DefaultFlowEngine implements FlowEngine {
                     var n=e.ready.remove();if(n.status!=NodeStatus.PENDING||n.submitted)continue;
                     if(n.spec.type!=Type.START){
                         if(n.active==0){skip(n,"BRANCH_NOT_SELECTED",true);changed=true;continue;}
-                        int expected=n.spec.type==Type.XOR_JOIN?1:n.spec.in.size();
+                        int expected=n.spec.type==Type.XOR_JOIN?1:n.spec.incomingEdges.size();
                         if(n.active!=expected){fail(n,NodeStatus.FAILED,n.spec.type==Type.XOR_JOIN?"GATEWAY_CONFLICT":"INPUT_PATH_MISMATCH","Active input mismatch");changed=true;continue;}
                     }
                     switch(n.spec.type){
@@ -243,7 +243,7 @@ public final class DefaultFlowEngine implements FlowEngine {
      * resolved 保证同一条边最多减少一次 remaining。
      */
     private void publish(RuntimeNode from,String selected,boolean inactive){
-        for(var edge:from.spec.out){
+        for(var edge:from.spec.outgoingEdges){
             var target=from.execution.nodes.get(edge.to.id);
             if(!target.resolved.add(edge.id))continue;
             target.remaining--;if(!inactive&&(selected==null||selected.equals(edge.id)))target.active++;
@@ -394,7 +394,7 @@ public final class DefaultFlowEngine implements FlowEngine {
             if(n.spec.type==Type.TASK)value=n.spec.bean.execute(context);
             else {
                 Edge match=null,fallback=null;int matches=0;
-                for(var e:n.spec.out){
+                for(var e:n.spec.outgoingEdges){
                     if(e.fallback()){fallback=e;continue;}
                     boolean yes=evaluator.evaluate(e.condition,context);
                     if(yes){matches++;match=e;}

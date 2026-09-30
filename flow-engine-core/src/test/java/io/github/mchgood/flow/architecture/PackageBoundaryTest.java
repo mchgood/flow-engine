@@ -52,12 +52,12 @@ class PackageBoundaryTest {
             ```
             """);
         var task = graph.nodes.get("work");
-        assertSame(task.in.get(0), graph.nodes.get("start").out.get(0));
-        assertSame(task, task.in.get(0).to);
+        assertSame(task.incomingEdges.get(0), graph.nodes.get("start").outgoingEdges.get(0));
+        assertSame(task, task.incomingEdges.get(0).to);
         assertThrows(UnsupportedOperationException.class, () -> graph.nodes.clear());
         assertThrows(UnsupportedOperationException.class, () -> graph.ordered.clear());
-        assertThrows(UnsupportedOperationException.class, () -> task.in.clear());
-        assertThrows(UnsupportedOperationException.class, () -> task.out.clear());
+        assertThrows(UnsupportedOperationException.class, () -> task.incomingEdges.clear());
+        assertThrows(UnsupportedOperationException.class, () -> task.outgoingEdges.clear());
         assertThrows(UnsupportedOperationException.class, () -> task.ancestors.clear());
     }
 }
