@@ -14,7 +14,7 @@
 | 控制流缺失 `{}` | 87 | 10 | 97 |
 | 一行多语句（`;` > 1） | 147 | 128 | 275 |
 | 单行超过 120 字符 | 103 | 159 | 262 |
-| 通配符 import | — | — | 57 处 / 23 个文件 |
+| 通配符 import | 19 处 / 9 文件 | 42 处 / 11 文件 | 61 处 / 20 文件 |
 | 运算符与关键字后缺空格 | 普遍 | 普遍 | 全项目 |
 | ≤2 字符简写标识符 | `e`×90 `n`×40 `r`×18 `d`×11 `c`×9 `a`×8 `s`×5 `b`×4 `l`×3 `p` `q` `w` `x` `t` `f` `g` `fs` `pf` `ex` `md` `an` | | |
 
@@ -62,12 +62,13 @@
 | R3 | 一行只声明一个变量，如 `final String id, label, target;` | 【强制】 | 逐条拆分为独立声明 |
 | R4 | 关键字后、运算符两侧、逗号后必须有空格 | 【强制】 | 全量补齐 |
 | R5 | 单行 ≤ 120 字符，超出按手册折行规则换行 | 【强制】 | 262 处折行 |
-| R6 | 禁用通配符 import（含静态通配符） | 【强制】 | 57 处展开为具体类型 |
-| R7 | import 分组有序：`io.github.mchgood` → `org`/`com` → `java`/`javax`，静态 import 置底 | 【推荐】 | 全量重排 |
+| R6 | 禁用通配符 import（含静态通配符） | 【强制】 | 61 处展开为具体类型 |
+| R7 | import 分组有序：`io.github.mchgood` → `org` → `java` → `javax`，静态 import 置底 | 【推荐】 | 全量重排（已实测项目只出现这 4 个顶级前缀，无 `com`/`jakarta`） |
 | R8 | 注解独占一行，如 `@Override public void run(){` 拆为两行 | 【推荐】 | 全量调整 |
 | R9 | 4 空格缩进、禁用 Tab、文件末尾保留换行、左括号行尾 / 右括号规则 | 【强制】 | 全量 |
 | R10 | 长整型字面量使用大写 `L`；修饰符顺序符合 JLS；数组声明用 `String[] args` 形式 | 【强制】 | 全量扫描 |
 | R11 | 简写标识符语义化，禁止无意义单字母与拼音缩写 | 【强制】 | 见第 4 节术语表 |
+| R12 | 代码中不得出现内联全限定类名，一律改为 import | 【推荐】 | 已实测 4 处：`ValueContractTest` 的 `java.util.stream.IntStream` ×2、`FlowCompiler` 的 `java.security.NoSuchAlgorithmException`、`GenericNodeIntegrationTest` 的 `org.aopalliance.intercept.MethodInterceptor` |
 
 ### 3.1 R5 折行的特殊约定
 
@@ -228,7 +229,7 @@ linkXRef                = false
 
 **TreeWalker — 语句与声明**
 
-`OneStatementPerLine`、`MultipleVariableDeclarations`、`OneTopLevelClassDeclaration`、`OuterTypeFilename`。
+`OneStatementPerLine`、`MultipleVariableDeclarations`、`OneTopLevelClass`、`OuterTypeFilename`。
 
 **TreeWalker — 折行与缩进**
 
@@ -236,7 +237,7 @@ linkXRef                = false
 
 **TreeWalker — 注解与修饰符**
 
-`AnnotationLocation`（**`allowSamelineSingleAnnotations=false`**，否则 `@Override public void run()` 不会被拦）、`ModifierOrder`、`ArrayTypeStyle`、`UpperEll`。
+`AnnotationLocation`（**三个 `allowSameline*` 属性全部置 `false`**：`allowSamelineSingleParameterlessAnnotation`、`allowSamelineParameterizedAnnotation`、`allowSamelineMultipleAnnotations`；否则 `@Override public void run()` 不会被拦。注意 10.21.4 **没有** `allowSamelineSingleAnnotations` 这个属性，写错会导致整个 TreeWalker 初始化失败）、`ModifierOrder`、`ArrayTypeStyle`、`UpperEll`。
 
 **TreeWalker — 命名（防回归核心）**
 
@@ -266,12 +267,32 @@ linkXRef                = false
 
 | 风险 | 处置 |
 | --- | --- |
-| `Indentation` 对 fluent 链式调用与折行条件误报 | 保持 `forceStrictCondition=false`（默认容忍额外缩进）；若仍有无法通过纯排版消除的误报，仅对该 token 降级，不放宽其他规则 |
+| `Indentation` 对 fluent 链式调用与折行条件误报 | 保持 `forceStrictCondition=false`（默认容忍额外缩进）；若仍有无法通过纯排版消除的误报，仅在该 module 上方加注释记录误报形态，不删除 module、不放宽其他规则 |
 | `ImportOrder` 分组与既有松散分组不符导致大量重排 | 属预期改动（R7），一次性重排后由闸门维持 |
 | `LineLength` 对超长字符串字面量无解 | 仅 8 处，见 §6.3 白名单，用 `+` 拼接折行 |
 | `EmptyBlock` / `EmptyCatchBlock` 拦到空体 | 已实测：全项目空 `{}` 只出现在 record / interface / 匿名类 / 静态嵌套类的**类型体**上（17 处），而 `EmptyBlock` 默认 token 只覆盖控制流块，不会误伤；唯一的空 catch 是 `FlowEngineTest.java:152` 的 `catch (InterruptedException ignored) {}`，变量名已与 `EmptyCatchBlock` 的 `exceptionVariableName=ignored` 一致 |
 | `RightCurly` 拦到单行空类型体（`record Parsed(...) {}`、`new CompiledCondition() {}`） | 对 `CLASS_DEF`/`RECORD_DEF`/`METHOD_DEF`/`CTOR_DEF` 等取 `alone_or_singleline`，允许整块单行；`OBJBLOCK` 同规则处理 |
-| checkstyle 10.21.4 在本机 JDK 25 / CI JDK 17 双版本运行 | 已实测 JDK 25 下可解析并报告；checkstyle 10.x 完整支持 Java 17 语法（record、sealed、模式匹配），CI 侧无风险 |
+| `AnnotationLocation` 拦到参数级注解 | 已实测项目内参数级注解为零（`(@Foo ...)` 形态不存在），`allowSamelineParameters` 保持默认 |
+| checkstyle 模块名或属性名写错导致 `TreeWalker` 整体初始化失败 | 已实测两个易错点：正确模块名是 `OneTopLevelClass`（**不是** `OneTopLevelClassDeclaration`）；`AnnotationLocation` 在 10.21.4 里没有 `allowSamelineSingleAnnotations`，正确属性是 `allowSamelineSingleParameterlessAnnotation` / `allowSamelineParameterizedAnnotation` / `allowSamelineMultipleAnnotations` |
+| checkstyle 10.21.4 在本机 JDK 25 / CI JDK 17 双版本运行 | 已实测 JDK 25 下配置可加载并报告违规；checkstyle 10.x 完整支持 Java 17 语法（record、sealed、模式匹配），CI 侧无风险 |
+
+### 5.6 闸门实测结果
+
+用未整改的 `config/EngineConfig.java`（45 行，含 3 行超长、2 处一行多语句、4 处缺大括号、`for(var d:...)` 短名）作输入，实测 `maven-checkstyle-plugin:3.6.0` + `checkstyle:10.21.4` 加载本规则集后报出 **96 条违规**：
+
+| 规则 | 条数 | 对应规约 |
+| --- | --- | --- |
+| `WhitespaceAround` | 55 | R4 |
+| `WhitespaceAfter` | 28 | R4 |
+| `NeedBraces` | 4 | R1 |
+| `LineLength` | 3 | R5 |
+| `LeftCurly` | 2 | R9 |
+| `AvoidStarImport` | 1 | R6 |
+| `OneStatementPerLine` | 1 | R2 |
+| `ParameterName` | 1 | R11 |
+| `LocalVariableName` | 1 | R11 |
+
+违规类型与 §3 的规则清单逐条对应，说明规则集既能拦住目标问题、也没有引入无关噪声。
 
 ## 6. 执行顺序与验证
 
@@ -292,30 +313,42 @@ linkXRef                = false
 
 ### 6.2 提交粒度
 
-按模块分次提交，约 6 个 commit，每个 commit 都必须编译 + 测试通过，便于逐个 review 与二分回退：
+按模块与包分次提交，共 9 个 commit，每个都必须编译 + 测试通过，便于逐个 review 与二分回退：
 
-1. `style: reformat flow-engine-core main sources per Alibaba Java conventions`
-2. `style: reformat flow-engine-core tests per Alibaba Java conventions`
-3. `style: reformat flow-engine-spring sources per Alibaba Java conventions`
-4. `style: reformat flow-engine-spring tests per Alibaba Java conventions`
-5. `style: reformat starter and examples per Alibaba Java conventions`
-6. `build: enforce Alibaba style rules with checkstyle gate`
+1. `refactor: rename graph adjacency fields to incomingEdges and outgoingEdges`
+2. `style: reformat flow-engine-core contract packages per Alibaba conventions`
+3. `style: reformat flow-engine-core internal packages per Alibaba conventions`
+4. `style: reformat flow-engine-core runtime per Alibaba conventions`
+5. `style: reformat flow-engine-core tests per Alibaba conventions`
+6. `style: reformat flow-engine-spring sources per Alibaba conventions`
+7. `style: reformat flow-engine-spring tests per Alibaba conventions`
+8. `style: reformat starter and examples per Alibaba conventions`
+9. `build: enforce Alibaba style rules with checkstyle gate`
 
-文档改动范围：整改过程**只**新增本设计文档，不改动 `docs/requirements.md`、`docs/technical-design.md`、`docs/quick-start.md`、`docs/spring-boot.md`、`docs/testing-coverage.md`、`README.md`（已核实这些文档内 13 个 `java` 代码块均已合规，且未引用任何被重命名的符号）。第 6 个 commit 额外在 `AGENTS.md` 的 Testing expectations 段落追加一句闸门说明，并同步 `.github/workflows/ci.yml` 无需改动这一事实。
+commit 1 单独存在的原因：`in`/`out` → `incomingEdges`/`outgoingEdges` 横跨 `internal.graph`、`internal.compiler`、`runtime` 三个包以及 core 的测试，必须原子完成才能编译。把它与格式化混在同一个 commit 会让 review 无法区分「改名」与「排版」。core main 也按 `api/spi/exception/result/config/node` → `internal` → `runtime` 拆成 3 个 commit，因为 `runtime` 的 `DefaultFlowEngine` 单文件 439 行、85 处一行多语句，独立成一个 review 单元更合适。
+
+文档改动范围：整改过程**只**新增 `docs/superpowers/**`，不改动 `docs/requirements.md`、`docs/technical-design.md`、`docs/quick-start.md`、`docs/spring-boot.md`、`docs/testing-coverage.md`、`README.md`（已核实这些文档内 13 个 `java` 代码块均已合规，且未引用任何被重命名的符号）。commit 9 额外在 `AGENTS.md` 的 Testing expectations 段落追加一段闸门说明；`.github/workflows/ci.yml` 无需改动。
 
 ### 6.3 语义等价硬校验
 
-测试之外增加第二道保险。**每个模块整改完成、提交之前**，对该模块所有改动文件逐一比对 `git show HEAD:<path>`（即上一个 commit 的版本）与工作区版本：
+测试之外增加第二道保险。**每个模块整改完成、提交之前**，对该模块所有改动文件逐一比对 `git show <上一个 commit>:<path>` 与工作区版本。规范化顺序如下（顺序很重要：标识符擦除依赖词边界，必须在删除空白之前完成）：
 
-1. 剔除 `package` 与 `import` 行（R6/R7 会改变 import 内容）。
-2. 删除所有空白字符。
-3. 删除所有 `{` 与 `}`（R1 会插入成对大括号；两侧同时删除以消除噪声）。
-4. 对工作区版本套用术语表的**反向映射**（新名 → 旧名）。
-5. 断言两侧 token 流完全一致。
+1. 剔除 `package` 行、`import` 行、行注释与块注释（R6/R7 会改变 import 内容）。
+2. 把字符串字面量替换为 `STR`，字符字面量替换为 `CHR`。
+3. 把术语表**词表**（全部旧名的基础形 + 全部新名，共 97 个标识符）里的标识符在两侧同时替换为占位符 `NAME`。
+4. 删除所有 `{` 与 `}`（R1 会插入成对大括号），再删除所有空白字符。
+5. 断言两侧 token 流逐字符相同。
 
 任何差异都意味着改到了语义，必须人工确认后才能提交。校验脚本置于 `/tmp`，不入库。
 
-> 步骤 3 会削弱「漏掉一个必要大括号」的检出能力，这一类缺陷由 `mvn test` 与 checkstyle 的 `NeedBraces` 兜底；本校验的职责是捕捉改名错配与意外删改语句。
+**为什么用「词表擦除」而不是「旧名 → 新名」正向替换**：同一个旧名在不同作用域会映射到不同新名（`DefaultFlowEngine` 里 `e` 既是 `Execution` 又是 `InterruptedException`，`FlowCompiler` 里 `n` 既是一般节点又是 `walk` 的当前节点），扁平的整词正则无法区分作用域，正向替换必然出错。擦除策略让比较对象变成「结构、字面量、数值、方法名、调用顺序」，与改名彻底解耦。
+
+已实测验证：
+
+- 对 `EngineConfig.java` 施加合法改动（补空格 + 拆行 + `d` → `timeout`）→ `failed=0`，且 `mvn compile` 通过；
+- 对同文件把 `maxSubflowDepth>32` 改成 `>64` → `EQUIV FAIL`，精确定位到分歧字符与上下文，退出码 1。
+
+> 本校验**不能**发现两类缺陷，需由其他手段兜底：漏掉一个必要大括号（由 `mvn test` 与 checkstyle 的 `NeedBraces` 兜底）、改错名（由编译器、测试与 checkstyle 的命名 `format` 兜底）。它的职责是捕捉意外删改语句、改动阈值与字面量、调整调用顺序。
 
 **合法差异白名单（8 处，全在 2 个测试文件）**：Mermaid 定义字符串字面量长度 105–277 字符，超 120 列，需按 `\n` 边界用 `+` 拼接折行。
 
