@@ -1,7 +1,10 @@
 package io.github.mchgood.flow.result;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 单次流程执行的结果快照；根执行和子执行通过实例 ID 关联。
@@ -21,8 +24,8 @@ import java.util.*;
  * @param physicalExitUnconfirmed 结果生成时尚未确认物理退出的任务路径与执行 ID；不随线程后续退出更新
  */
 public record FlowResult(String executionId, String rootExecutionId, String parentExecutionId,
-    String flowId, String definitionHash, FlowStatus status, Instant startedAt, Instant endedAt,
-    Map<String,NodeRecord> results, List<FlowError> errors, List<String> physicalExitUnconfirmed) {
+        String flowId, String definitionHash, FlowStatus status, Instant startedAt, Instant endedAt,
+        Map<String, NodeRecord> results, List<FlowError> errors, List<String> physicalExitUnconfirmed) {
 
     /**
      * 复制并冻结结果表与诊断列表，保留业务输出引用。
@@ -30,8 +33,9 @@ public record FlowResult(String executionId, String rootExecutionId, String pare
      * @throws NullPointerException 任一集合为 null，或错误/未退出列表含 null 元素
      */
     public FlowResult {
-        results=Collections.unmodifiableMap(new LinkedHashMap<>(results));
-        errors=List.copyOf(errors); physicalExitUnconfirmed=List.copyOf(physicalExitUnconfirmed);
+        results = Collections.unmodifiableMap(new LinkedHashMap<>(results));
+        errors = List.copyOf(errors);
+        physicalExitUnconfirmed = List.copyOf(physicalExitUnconfirmed);
     }
 
     /**
@@ -39,5 +43,5 @@ public record FlowResult(String executionId, String rootExecutionId, String pare
      *
      * @return 仅当 status 为 SUCCEEDED 时返回 true
      */
-    public boolean succeeded() { return status==FlowStatus.SUCCEEDED; }
+    public boolean succeeded() { return status == FlowStatus.SUCCEEDED; }
 }

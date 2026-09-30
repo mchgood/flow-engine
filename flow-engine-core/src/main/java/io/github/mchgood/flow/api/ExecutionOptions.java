@@ -15,14 +15,19 @@ public record ExecutionOptions(Duration timeout) {
      *
      * @throws IllegalArgumentException 非 null 期限不在大于零且不超过一天的范围内
      */
-    public ExecutionOptions { if(timeout!=null&&(timeout.isNegative()||timeout.isZero()||timeout.compareTo(Duration.ofDays(1))>0))throw new IllegalArgumentException("timeout must be in (0, 1 day]"); }
+    public ExecutionOptions {
+        if (timeout != null
+                && (timeout.isNegative() || timeout.isZero() || timeout.compareTo(Duration.ofDays(1)) > 0)) {
+            throw new IllegalArgumentException("timeout must be in (0, 1 day]");
+        }
+    }
 
     /**
      * 沿用引擎默认流程期限。
      *
      * @return timeout 为 null 的执行选项
      */
-    public static ExecutionOptions defaults(){return new ExecutionOptions(null);}
+    public static ExecutionOptions defaults() { return new ExecutionOptions(null); }
 
     /**
      * 指定本次根流程期限。
@@ -31,5 +36,5 @@ public record ExecutionOptions(Duration timeout) {
      * @return 新的执行选项
      * @throws IllegalArgumentException 非 null 期限越界
      */
-    public static ExecutionOptions withTimeout(Duration timeout){return new ExecutionOptions(timeout);}
+    public static ExecutionOptions withTimeout(Duration timeout) { return new ExecutionOptions(timeout); }
 }

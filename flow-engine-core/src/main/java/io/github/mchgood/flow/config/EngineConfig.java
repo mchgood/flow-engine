@@ -19,9 +19,9 @@ import java.time.Duration;
  * @param flowTimeout 根流程默认期限及每次子流程的期限上限
  * @param closeTimeout 关闭时等待根调用自然完成的期限；不保证业务线程已经退出
  */
-public record EngineConfig(int workerThreads,int queueCapacity,int maxConcurrentExecutions,
-    int maxInFlightPerExecution,int maxSubflowDepth,int maxExecutionsPerRoot,int maxActiveChildren,
-    Duration nodeTimeout,Duration gatewayTimeout,Duration flowTimeout,Duration closeTimeout) {
+public record EngineConfig(int workerThreads, int queueCapacity, int maxConcurrentExecutions,
+        int maxInFlightPerExecution, int maxSubflowDepth, int maxExecutionsPerRoot, int maxActiveChildren,
+        Duration nodeTimeout, Duration gatewayTimeout, Duration flowTimeout, Duration closeTimeout) {
 
     /**
      * 校验容量、子流程深度和期限。
@@ -29,9 +29,17 @@ public record EngineConfig(int workerThreads,int queueCapacity,int maxConcurrent
      * @throws IllegalArgumentException 容量、深度或期限越界，或期限为 null
      */
     public EngineConfig {
-        if(workerThreads<1||queueCapacity<1||maxConcurrentExecutions<1||maxInFlightPerExecution<1||maxSubflowDepth<0||maxSubflowDepth>32||maxExecutionsPerRoot<1||maxActiveChildren<1)throw new IllegalArgumentException("Invalid capacities");
-        for(var d:new Duration[]{nodeTimeout,gatewayTimeout,flowTimeout,closeTimeout})
-            if(d==null||d.isZero()||d.isNegative()||d.compareTo(Duration.ofDays(1))>0)throw new IllegalArgumentException("Invalid timeout");
+        if (workerThreads < 1 || queueCapacity < 1 || maxConcurrentExecutions < 1
+                || maxInFlightPerExecution < 1 || maxSubflowDepth < 0 || maxSubflowDepth > 32
+                || maxExecutionsPerRoot < 1 || maxActiveChildren < 1) {
+            throw new IllegalArgumentException("Invalid capacities");
+        }
+        for (var timeout : new Duration[] {nodeTimeout, gatewayTimeout, flowTimeout, closeTimeout}) {
+            if (timeout == null || timeout.isZero() || timeout.isNegative()
+                    || timeout.compareTo(Duration.ofDays(1)) > 0) {
+                throw new IllegalArgumentException("Invalid timeout");
+            }
+        }
     }
 
     /**
@@ -40,5 +48,9 @@ public record EngineConfig(int workerThreads,int queueCapacity,int maxConcurrent
      *
      * @return 新的不可变默认配置
      */
-    public static EngineConfig defaults(){return new EngineConfig(8,128,64,8,8,128,32,Duration.ofSeconds(30),Duration.ofSeconds(1),Duration.ofSeconds(60),Duration.ofSeconds(10));}
+    public static EngineConfig defaults() {
+        return new EngineConfig(8, 128, 64, 8, 8, 128, 32,
+                Duration.ofSeconds(30), Duration.ofSeconds(1),
+                Duration.ofSeconds(60), Duration.ofSeconds(10));
+    }
 }

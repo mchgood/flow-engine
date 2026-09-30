@@ -19,4 +19,3 @@ public interface NodeResolver {
      */
     FlowNode<?> resolve(String beanId);
 }
-

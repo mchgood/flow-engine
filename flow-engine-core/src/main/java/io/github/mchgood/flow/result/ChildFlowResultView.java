@@ -10,4 +10,4 @@ import java.util.Map;
  * @param executionId 子执行独立实例 ID
  * @param results 子执行内部节点的结果表，业务对象仍共享引用
  */
-public record ChildFlowResultView(String status, String executionId, Map<String,NodeRecord> results) {}
+public record ChildFlowResultView(String status, String executionId, Map<String, NodeRecord> results) {}

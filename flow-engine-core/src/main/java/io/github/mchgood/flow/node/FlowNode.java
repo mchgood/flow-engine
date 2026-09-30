@@ -22,4 +22,3 @@ public interface FlowNode<O> {
      */
     O execute(NodeContext context) throws Exception;
 }
-

@@ -2,7 +2,8 @@ package io.github.mchgood.flow.api;
 
 import io.github.mchgood.flow.result.FlowResult;
 
-import java.util.*;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 流程注册、同步执行和生命周期入口。
@@ -21,7 +22,7 @@ public interface FlowEngine extends AutoCloseable {
      * @throws io.github.mchgood.flow.exception.FlowException 定义、绑定或引用校验失败，ID 重复，或引擎已关闭
      * @throws NullPointerException 参数为 null
      */
-    FlowDescriptor register(String flowId,String markdown);
+    FlowDescriptor register(String flowId, String markdown);
 
     /**
      * 原子注册一组流程，允许本批次内相互引用，但不允许循环引用。
@@ -33,7 +34,7 @@ public interface FlowEngine extends AutoCloseable {
      * @throws io.github.mchgood.flow.exception.FlowException 编译、重复 ID、子流程引用或生命周期校验失败
      * @throws NullPointerException Map 为 null
      */
-    List<FlowDescriptor> registerAll(Map<String,String> markdownByFlowId);
+    List<FlowDescriptor> registerAll(Map<String, String> markdownByFlowId);
 
     /**
      * 同步执行已注册流程，等待逻辑结果返回。
@@ -47,7 +48,7 @@ public interface FlowEngine extends AutoCloseable {
      * @throws io.github.mchgood.flow.exception.FlowException 流程不存在、根调用容量耗尽、引擎已关闭或工作线程同步重入
      * @throws NullPointerException options 为 null
      */
-    FlowResult execute(String flowId,Object input,ExecutionOptions options);
+    FlowResult execute(String flowId, Object input, ExecutionOptions options);
 
     /**
      * 使用引擎默认流程期限同步执行。
@@ -57,7 +58,9 @@ public interface FlowEngine extends AutoCloseable {
      * @return 本次执行结果
      * @see #execute(String, Object, ExecutionOptions)
      */
-    default FlowResult execute(String flowId,Object input){return execute(flowId,input,ExecutionOptions.defaults());}
+    default FlowResult execute(String flowId, Object input) {
+        return execute(flowId, input, ExecutionOptions.defaults());
+    }
 
     /**
      * 关闭引擎并拒绝新的根调用和非空注册。
@@ -66,5 +69,6 @@ public interface FlowEngine extends AutoCloseable {
      *
      * @throws io.github.mchgood.flow.exception.FlowException 当前引擎工作线程重入调用 close
      */
-    @Override void close();
+    @Override
+    void close();
 }

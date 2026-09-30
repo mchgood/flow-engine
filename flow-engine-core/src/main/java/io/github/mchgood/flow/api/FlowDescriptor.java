@@ -7,4 +7,4 @@ package io.github.mchgood.flow.api;
  * @param definitionHash 原始 Markdown UTF-8 字节的 SHA-256 十六进制摘要，空白变化也会改变摘要
  * @param nodeCount 包含起止、网关及子流程调用节点在内的节点总数
  */
-public record FlowDescriptor(String flowId,String definitionHash,int nodeCount) {}
+public record FlowDescriptor(String flowId, String definitionHash, int nodeCount) {}

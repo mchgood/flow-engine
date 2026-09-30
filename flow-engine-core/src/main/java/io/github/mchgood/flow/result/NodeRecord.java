@@ -19,5 +19,5 @@ import java.time.Instant;
  * @param selectedEdgeId 排他网关选中边 ID；其他情况为 null
  */
 public record NodeRecord(String nodeId, String targetId, String type, NodeStatus status,
-    boolean present, Object value, String skipReason, FlowError error, Instant startedAt,
-    Instant endedAt, String selectedEdgeId) {}
+        boolean present, Object value, String skipReason, FlowError error, Instant startedAt,
+        Instant endedAt, String selectedEdgeId) {}

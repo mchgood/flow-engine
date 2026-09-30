@@ -6,6 +6,7 @@ package io.github.mchgood.flow.exception;
  * message 面向诊断，不应通过解析其文本进行业务分支判断。
  */
 public class FlowException extends RuntimeException {
+
     private final String code;
 
     /**
@@ -14,7 +15,10 @@ public class FlowException extends RuntimeException {
      * @param code 错误码
      * @param message 诊断信息
      */
-    public FlowException(String code, String message) { super(message); this.code=code; }
+    public FlowException(String code, String message) {
+        super(message);
+        this.code = code;
+    }
 
     /**
      * 创建保留原因链的异常。
@@ -23,7 +27,10 @@ public class FlowException extends RuntimeException {
      * @param message 诊断信息
      * @param cause 原始异常，可为 null
      */
-    public FlowException(String code, String message, Throwable cause) { super(message,cause); this.code=code; }
+    public FlowException(String code, String message, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+    }
 
     /**
      * 返回机器可判断的错误码。
