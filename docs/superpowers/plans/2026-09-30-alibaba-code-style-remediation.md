@@ -30,6 +30,21 @@
 
 ---
 
+### 0. token 等价校验的分级协议（Task 2 复核后确立，对所有后续任务生效）
+
+Task 2 实测暴露了两个校验设计缺陷，协议如下：
+
+1. **严格 token 等价（主闸门）**：`python3 /tmp/style-equiv.py <上一个 commit> <改动文件>`。它证明改动只涉及空白、大括号、import、注释与改名词表内的标识符。
+2. **允许的差异类别只有两类**：
+   - (a) **R3 一行多变量声明拆分**。`T a, b;` -> `T a; T b;` 是 token 结构变化（一个 `;` 变两个、类型 token 被重新写出），严格校验**必然** FAIL，这不是缺陷。处理方式：在报告里逐条列出每个拆分点（文件:行、改前 -> 改后全文），并把「改前形态」与「改后形态」两种 fold 模式补进 `/tmp/style-equiv-decl.py` 的 `FOLDS` 列表（两侧同时折叠），直到 `FOLD-EQUIV ... failed=0`。任务 reviewer 会把枚举与 diff 逐条比对。
+   - (b) §6.3 白名单内的 8 处超长字符串字面量折行（已在 `EXEMPT`）。
+3. **任何其他差异都是缺陷**：语句被删改、阈值/字面量变化、调用顺序变化，都必须修回原语义，**禁止**扩大 `EXEMPT` 或 `FOLDS` 来掩盖。
+4. **改名为等价类映射而非擦除**（Task 2 复核后升级）：脚本把旧名基础形与新名映射到同一个类代表元（旧名基础形），而不是都擦成 `NAME`。这样改名两侧仍归一化一致，但**两个不同改写对之间交换实参会被检出**（已实测：把 `new Node(spec, incomingEdges, outgoingEdges)` 的两个实参互换，`/tmp/style-equiv-decl.py c51d999` 报 1 处 `FOLD-DIFF`）。仍需 reviewer 人工留意的是同一等价类内部的互换（如 `e` 同时映射到 `execution` 与 `exception`，二者互换无法靠名字区分），不过这类互换会因类型不同而编译失败，风险由编译器兜底。
+5. **`git diff` 的 grep 过滤器不能作为「无改动」的证明**：凡排除「含新名行」的过滤器，必然把每条改名行的旧侧暴露出来。改用「完整读 diff + 逐 hunk 确认只属于已列类别」。
+6. 折叠校验脚本固定为 `/tmp/style-equiv-decl.py`（由 Task 2 的一次性脚本提升而来），**必须显式传入 base ref**，不得硬编码 `HEAD`（提交后会自我比较而失效）。
+
+---
+
 ## 违规基线速查
 
 整改前实测（Task 1 的扫描脚本会复现这些数字）：
@@ -75,6 +90,7 @@ examples/test OrderExampleTest.java            r
 - Create: `/tmp/style-scan.py`（违规计数器，不入库）
 - Create: `/tmp/style-equiv.py`（token 级语义等价校验，不入库）
 - Create: `/tmp/rename-map.json`（术语表的可执行形式，不入库）
+- Create: `/tmp/style-equiv-decl.py`（声明拆分折叠校验，Task 2 复核后加入；必须显式传 base ref）
 
 **Interfaces:**
 - Consumes: 无（首个任务）
@@ -551,7 +567,7 @@ python3 /tmp/style-equiv.py HEAD \
   flow-engine-core/src/test/java/io/github/mchgood/flow/architecture/PackageBoundaryTest.java
 ```
 
-Expected: `EQUIV checked=5 failed=0`，退出码 0。
+Expected: 严格校验对 2 处声明拆分 FAIL 属预期（见第 0 节协议）；其余不得有差异。已实测：`failed=2`，分歧点恰为 `Definition.Node` 字段声明与 `MutableGraph.Node` 字段声明；`/tmp/style-equiv-decl.py` 用 6 条 fold 模式对两侧折叠后 `FOLD-EQUIV checked=5 failed=0`。
 
 - [ ] **Step 11: 核对 diff 只含改名与拆行**
 
@@ -559,9 +575,7 @@ Run: `git diff --stat`
 
 Expected: 恰好 5 个文件被改动。
 
-Run: `git diff -U0 | grep -E "^[+-]" | grep -vE "^(\+\+\+|---)" | grep -viE "incomingEdges|outgoingEdges|List<Edge>|^\+$|^-$|入边|出边|邻接表"`
-
-Expected: **无输出**（所有改动行都只涉及 `in`/`out` 改名、`List<Edge>` 声明拆行或对应 Javadoc 拆分）。
+**（原 Step 11 的 grep 过滤器预期「无输出」在逻辑上不可达成，已由第 0 节第 5 条取代。** 实际执行方式：完整读 `git diff`，逐 hunk 确认每行要么是 `in`/`out` 改名的镜像、要么是已列入 `FOLDS` 的声明拆分、要么是随拆分产生的 Javadoc `/**`/`*/` 分隔行。Task 2 已按此完成，reviewer 复核通过。）
 
 - [ ] **Step 12: 提交**
 
@@ -787,7 +801,7 @@ python3 /tmp/style-equiv.py HEAD $(git diff --name-only HEAD -- 'flow-engine-cor
   'flow-engine-core/src/main/java/io/github/mchgood/flow/node')
 ```
 
-Expected: `EQUIV checked=24 failed=0`，退出码 0。
+Expected: 除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理并补入 `FOLDS`）。
 
 若某文件 FAIL，读脚本打印的 `first divergence` 上下文定位并**修回原语义**，不得把文件加进 `EXEMPT`。`NodeContext.java` 的 `r` -> `nodeRecord` 已在 `rename-map.json` 里；若报 FAIL 且分歧点是 Javadoc 文字，说明改动了注释内容，改回来。
 
@@ -1133,7 +1147,7 @@ python3 /tmp/style-equiv.py HEAD \
   flow-engine-core/src/main/java/io/github/mchgood/flow/internal/compiler/package-info.java
 ```
 
-Expected: `EQUIV checked=5 failed=0`，退出码 0。
+Expected: 除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理并补入 `FOLDS`）。
 
 若 `FlowCompiler.java` FAIL，按 `first divergence` 上下文定位：改名类差异已被词表擦除，不会触发 FAIL，所以分歧点必然落在**语句结构、运算符、数值、字符串或方法名**上——那是真实的语义改动，必须修回原样。**不得**把文件加进 `EXEMPT`。若确认某个新引入的标识符（例如 `boundaryEdge`）不在词表里，把它作为某条映射的值补进 `/tmp/rename-map.json` 对应文件的条目后重跑。
 
@@ -1514,7 +1528,7 @@ python3 /tmp/style-equiv.py HEAD \
   flow-engine-core/src/main/java/io/github/mchgood/flow/runtime/package-info.java
 ```
 
-Expected: `EQUIV checked=2 failed=0`，退出码 0。
+Expected: 除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理并补入 `FOLDS`）。
 
 若 FAIL，按 `first divergence` 定位。改名差异已被词表擦除（`yes`/`matched`、`e`/`execution`/`exception`、`n`/`node` 等均在 Task 1 Step 3 的 JSON 里），不会触发 FAIL，因此分歧点必然落在**语句结构、运算符、数值、字符串或方法名**上：
 
@@ -1720,7 +1734,7 @@ Expected: `Tests run: 98, Failures: 0, Errors: 0, Skipped: 0`。**测试数必�
 python3 /tmp/style-equiv.py HEAD $(git diff --name-only HEAD -- 'flow-engine-core/src/test')
 ```
 
-Expected: 一条 `EQUIV EXEMPT ...RuntimeBoundaryTest.java (long Mermaid literals; review manually)` + `EQUIV checked=6 failed=0`，退出码 0。
+Expected: 一条 `EQUIV EXEMPT ...RuntimeBoundaryTest.java` + 除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理）。
 
 - [ ] **Step 12: 局部扫描清零确认**
 
@@ -1969,7 +1983,7 @@ Expected: core `Tests run: 98` 与 spring `Tests run: 84`，均 `Failures: 0, Er
 python3 /tmp/style-equiv.py HEAD $(git diff --name-only HEAD -- 'flow-engine-spring/src/main')
 ```
 
-Expected: `EQUIV checked=3 failed=0`，退出码 0。
+Expected: 除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理）。
 
 - [ ] **Step 11: 局部扫描清零确认**
 
@@ -2104,7 +2118,7 @@ Expected: core `Tests run: 98` 与 spring `Tests run: 84`，均 `Failures: 0, Er
 python3 /tmp/style-equiv.py HEAD $(git diff --name-only HEAD -- 'flow-engine-spring/src/test')
 ```
 
-Expected: 一条 `EQUIV EXEMPT ...FlowEngineTest.java` + `EQUIV checked=4 failed=0`，退出码 0。
+Expected: 一条 `EQUIV EXEMPT ...FlowEngineTest.java` + 除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理）。
 
 - [ ] **Step 10: 局部扫描清零确认**
 
@@ -2201,7 +2215,7 @@ Expected: 四个模块分别 `Tests run: 98` / `84` / `22` / `1`，全部 `Failu
 python3 /tmp/style-equiv.py HEAD $(git diff --name-only HEAD -- 'flow-engine-spring-boot-starter' 'flow-engine-examples')
 ```
 
-Expected: `EQUIV checked=6 failed=0`，退出码 0。
+Expected: 除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理）。
 
 - [ ] **Step 9: 全项目扫描清零确认**
 
@@ -2585,7 +2599,7 @@ echo "BASE=$BASE"
 python3 /tmp/style-equiv.py "$BASE" $(git diff --name-only "$BASE" -- '*.java')
 ```
 
-Expected: `BASE` 是 `a97db33`；输出含 2 条 `EQUIV EXEMPT`（`RuntimeBoundaryTest.java`、`FlowEngineTest.java`）+ `EQUIV checked=<改动文件数> failed=0`，退出码 0。
+Expected: `BASE` 是 `a97db33`；输出含 2 条 `EQUIV EXEMPT`，其余文件除 R3 声明拆分点外 `failed=0`（拆分点按第 0 节协议第 2(a) 条处理并已入 `FOLDS`）。
 
 > 若某文件 FAIL，说明存在真实的语义改动（改名差异已被词表擦除，不会触发 FAIL）。逐文件看 `first divergence` 上下文并修回原语义；若确认是 Task 10 Step 5 新引入且未登记的改名，把该条映射补进 `/tmp/rename-map.json` 后重跑。**不得**扩大 `EXEMPT` 集合。
 
