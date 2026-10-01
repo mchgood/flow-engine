@@ -45,7 +45,7 @@ Java 17+,Maven。以下包相对于 `io.github.mchgood.flow`。
 
 - 仅文档/指令变更:检查链接、示例、一致性与约束保真。除非可运行示例、构建设置或行为变化,否则无需运行 Java 套件。
 - 代码变更:为变更行为新增/更新测试,开发期运行受影响测试。提交代码/构建变更或发布前,运行 `mvn verify`,然后 `python3 scripts/check-coverage.py`。`verify` 已包含 `test`,不要把两者分开作为最终门禁。遵守 CI 检查。
-- `mvn verify` 同时运行 Checkstyle 门禁(`config/checkstyle/checkstyle.xml`),强制执行 Alibaba Java 规约子集:每条控制流语句必须有大括号、每行一条语句和一个变量声明、120 列上限、禁止通配符 import、import 分组有序,且变量/参数/字段/record 组件不得短于三个字符,白名单除外:`i`/`j`/`k`(循环计数与 lambda 参数)、`id`、`to`(方法与类型名遵循标准 Alibaba 模式,无长度下限)。通过修改代码修复违例;不得放宽规则 `format` 或添加白名单条目让失败通过。
+- `mvn verify` 同时运行 Checkstyle 门禁(`config/checkstyle/checkstyle.xml`),强制执行 Alibaba Java 格式化与命名规约子集:每条控制流语句必须有大括号、每行一条语句和一个变量声明、120 列上限、禁止通配符 import、import 分组有序,且变量/参数/字段/record 组件不得短于三个字符,白名单除外:`i`/`j`/`k`(循环计数与 lambda 参数)、`id`、`to`(方法与类型名遵循标准 Alibaba 模式,无长度下限)。通过修改代码修复违例;不得放宽规则 `format` 或添加白名单条目让失败通过。
 - 保持 core、Spring、Starter 聚合 LINE >= 95%、BRANCH >= 88%。Examples 只提供执行数据,不计入生产类数量。绝不降低阈值求通过。
 - 负例用错误码与副作用断言。并发测试需要 latch/barrier、有界等待与 `finally` 清理;生成类测试需要固定种子与独立 oracle。解析器/调度器变更需覆盖相关竞态与畸形/组合图;仅凭测试数量不构成完整性。
 - 相关检查通过后,仅在有新变更、失败或具体未决风险时重复或扩大检查范围。报告实际变更、实际运行的检查与实质局限;历史测试结果与本次运行分开陈述。
