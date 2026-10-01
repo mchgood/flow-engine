@@ -1,6 +1,7 @@
 package io.github.mchgood.flow.spring;
 
 import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.result.NodeStatus;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 
@@ -8,8 +9,8 @@ import org.aopalliance.intercept.MethodInterceptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,25 +28,41 @@ class GenericNodeIntegrationTest {
     /** 具体泛型 Bean 返回值参与容器类型推断；工作引擎仅持有通配符引用。 */
     @Configuration(proxyBeanMethods = false)
     static class Nodes {
-        @Bean
-        FlowNode<ValidationResult> validate() {
-            return context -> new ValidationResult(true);
+        /** 输出具体业务类型的 validate 节点。 */
+        @Component("validate")
+        static class ValidateNode implements FlowNode<ValidationResult> {
+            @Override
+            public ValidationResult execute(NodeContext context) {
+                return new ValidationResult(true);
+            }
         }
 
-        @Bean
-        FlowNode<String> describe() {
-            return context -> context.ancestorValue("validate", ValidationResult.class).valid()
-                    ? "approved" : "rejected";
+        /** 按类型读取祖先结果的 describe 节点。 */
+        @Component("describe")
+        static class DescribeNode implements FlowNode<String> {
+            @Override
+            public String execute(NodeContext context) {
+                return context.ancestorValue("validate", ValidationResult.class).valid()
+                        ? "approved" : "rejected";
+            }
         }
 
-        @Bean
-        FlowNode<Void> complete() {
-            return context -> null;
+        /** 声明 Void 且返回 null 的 complete 节点。 */
+        @Component("complete")
+        static class CompleteNode implements FlowNode<Void> {
+            @Override
+            public Void execute(NodeContext context) {
+                return null;
+            }
         }
 
-        @Bean
-        FlowNode<Integer> wrongType() {
-            return context -> context.ancestorValue("validate", Integer.class);
+        /** 故意以错误类型读取祖先结果的 wrongType 节点。 */
+        @Component("wrongType")
+        static class WrongTypeNode implements FlowNode<Integer> {
+            @Override
+            public Integer execute(NodeContext context) {
+                return context.ancestorValue("validate", Integer.class);
+            }
         }
     }
 

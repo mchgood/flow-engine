@@ -2,14 +2,15 @@ package io.github.mchgood.flow.spring;
 
 import io.github.mchgood.flow.exception.FlowException;
 import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.node.NodeContext;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.context.support.GenericApplicationContext;
+import org.springframework.stereotype.Component;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -54,10 +55,14 @@ class SpringResolverContractTest {
     /** singleton 代理外观不能掩盖 prototype 目标。 */
     @Configuration(proxyBeanMethods = false)
     static class PrototypeProxy {
-        @Bean
+        /** prototype 作用域与接口代理外观注册的 work 节点，用于暴露代理背后的非 singleton 目标。 */
+        @Component("work")
         @Scope(value = "prototype", proxyMode = ScopedProxyMode.INTERFACES)
-        FlowNode<?> work() {
-            return context -> 1;
+        static class WorkNode implements FlowNode<Integer> {
+            @Override
+            public Integer execute(NodeContext context) {
+                return 1;
+            }
         }
     }
 }
