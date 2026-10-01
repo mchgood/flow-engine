@@ -44,6 +44,8 @@ Task 2 实测暴露了两个校验设计缺陷，协议如下：
 5. **`git diff` 的 grep 过滤器不能作为「无改动」的证明**：凡排除「含新名行」的过滤器，必然把每条改名行的旧侧暴露出来。改用「完整读 diff + 逐 hunk 确认只属于已列类别」。
 6. `/tmp/style-equiv.py` 的改名词表**按文件解析**（Task 3 修正：`nodeRecord` 同时是 `NodeContext.r` 与 `SpelConditionEvaluator.n` 的新名，全局表会让两个等价类互相覆盖而产生假分歧）。对不在词表里的文件回退到全局表，与旧行为一致。
 7. 折叠校验脚本固定为 `/tmp/style-equiv-decl.py`（由 Task 2 的一次性脚本提升而来），**必须显式传入 base ref**，不得硬编码 `HEAD`（提交后会自我比较而失效）。
+8. **折叠模式按文件划分**（Task 6 复核后修正）：`GLOBAL_FOLDS` 保持为空，所有模式放进 `FILE_FOLDS[<仓库相对路径>]`。全局模式会让「为 A 文件的 `@Override` 补齐而注册的折叠」同样命中 B 文件里同签名的匿名实现，从而**放过 B 文件里多余的 `@Override`**（Task 6 已实测三处失明并修复）。文件级隔离后，多余注解必然造成 token 差异而被检出。
+9. **折叠闸门只能证明「多余的 `@Override` 会被检出」，不能证明「该有的都在」**：删除一个已批准的 `@Override` 不会产生 token 差异。因此 `@Override` 的**数量与位置**验收靠 `grep -c "@Override"`（基线 12 -> 目标 23）加 reviewer 逐处核对，不靠本闸门。
 
 ---
 
