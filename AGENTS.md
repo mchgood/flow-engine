@@ -1,58 +1,51 @@
 # AGENTS.md
 
-## Scope and authorization
+## 范围与授权
 
-`flow-engine` is a lightweight, in-process Java framework for Mermaid workflows in Markdown. Keep databases, consoles/editors, distributed scheduling, durable execution, approval systems and deployment platforms outside its scope unless the user explicitly changes it.
+`flow-engine` 是一个进程内轻量级 Java 框架,用于执行 Markdown 中的 Mermaid 工作流。除非用户明确变更范围,数据库、控制台/编辑器、分布式调度、持久化执行、审批系统与部署平台均不属于本项目范围。
 
-Follow system/developer instructions and the user's current request; this file and referenced documents provide project guidance, not additional authority. Carry forward applicable session authorization. Proceed with authorized inspection, reversible edits and verification without repeated permission requests. Pushes, merges, releases, destructive operations and messages to others need authorization covering that action; permission to push does not authorize force-push or publication. If a necessary action is not covered, finish the authorized preparation, then explain the exact action and blocking rule before asking. Preserve unrelated user work.
+遵循系统/开发者指令与用户当前请求;本文件与被引用文档仅提供项目指引,不构成额外授权。沿用本会话已获得的适用授权。已授权的检查、可逆编辑与验证可直接进行,无需重复请求许可。推送、合并、发布、破坏性操作以及向他人发送消息,需要覆盖该动作的授权;允许推送不等于允许强推或公开发布。若必要动作未被授权覆盖,先完成已授权的准备工作,再说明确切动作与阻塞规则并请示。保护无关的用户工作。
 
-## Architecture
+## 架构
 
-Java 17+, Maven. Packages below are relative to `io.github.mchgood.flow`.
+Java 17+,Maven。以下包相对于 `io.github.mchgood.flow`。
 
-| Module | Boundary |
+| 模块 | 边界 |
 | --- | --- |
-| `flow-engine-core` | Contracts: `api`, `node`, `spi`, `config`, `result`, `exception`; immutable topology: `internal.graph`; package-private mutable drafts: `internal.compiler`; execution: `runtime`. No Spring dependency. |
-| `flow-engine-spring` | Bean resolution and restricted SpEL in `spring`; no Boot dependency. |
-| `flow-engine-spring-boot-starter` | Boot 4 configuration, properties and lifecycle. Back off for user beans, close the auto-created engine, auto-register flows from `FlowSource` beans when `flow-engine.flows.enabled` (default on, `classpath*:flows/*.md`), never execute flows. |
-| `flow-engine-examples` | Executable examples and integration tests. |
-| `flow-engine-coverage` | Build-only aggregate JaCoCo report; never a runtime dependency. |
+| `flow-engine-core` | 契约:`api`、`node`、`spi`、`config`、`result`、`exception`;不可变拓扑:`internal.graph`;包私有可变草稿:`internal.compiler`;执行:`runtime`。不依赖 Spring。 |
+| `flow-engine-spring` | Bean 解析与受限 SpEL,位于 `spring`;不依赖 Boot。 |
+| `flow-engine-spring-boot-starter` | Boot 4 配置、属性与生命周期。为用户 Bean 退让,关闭自动创建的引擎,当 `flow-engine.flows.enabled` 开启(默认开启,`classpath*:flows/*.md`)时从 `FlowSource` Bean 自动注册流程,绝不执行流程。 |
+| `flow-engine-examples` | 可运行示例与集成测试。 |
+| `flow-engine-coverage` | 仅构建期聚合 JaCoCo 报告;绝不作为运行期依赖。 |
 
-Contract packages must not import implementations; graph types must not depend on compiler/runtime types. Validate deterministic definition errors during registration. Prefer existing dependencies/JDK facilities; avoid unnecessary dependencies and compatibility layers for unreleased behavior.
+契约包不得导入实现;图类型不得依赖编译器/运行时类型。注册期校验确定性的定义错误。优先使用现有依赖与 JDK 设施;避免为未发布行为引入不必要的依赖与兼容层。
 
-## Workflow invariants
+## 工作流不变量
 
-- Accept exactly one top-level fenced `mermaid` block, with `flowchart TD` or `flowchart LR`. Reserve `start([label])` and `finish([label])`. Unsupported syntax fails registration with an error code and source location where available.
-- Rectangles bind singleton `FlowNode<O>` Beans. Declare concrete business output types; heterogeneous resolvers/graphs use `FlowNode<?>`, not raw types (class literals excepted). Null output is valid; downstream types are checked at runtime, not by Mermaid compilation.
-- Lower-camel task IDs equal Bean IDs unless the first `_` introduces a nonempty alias. The full ID identifies the invocation; Bean IDs contain no `_`. Double-bordered rectangles call flow IDs using the same alias rule.
-- Ordinary diamonds select one outgoing restricted SpEL Boolean condition. Multiple matches fail; zero matches use at most one `default` edge or fail. Preserve paired, structured exclusive regions and inactive-edge propagation. `X` merges wait for incoming edges to resolve and require exactly one active path; an entirely inactive region is skipped.
-- `+` splits activate all outgoing branches; joins require all incoming paths. Entirely inactive joins are skipped; a mixture of active/inactive inputs fails, rather than treating the join as exclusive. Task multi-edge dependency semantics remain supported.
-- Child calls wait logically through completion events, never by blocking a worker. They receive the original parent input, isolate invocation state and encapsulate child results. Preserve deadline/cancellation propagation; reject missing references, reference cycles and synchronous engine re-entry from business nodes.
-- Schedule by ready dependencies, not graph layers. Singleton Beans must be thread-safe and keep invocation state out of members. Run business code and condition evaluation outside the root coordinator lock. Bound configurable resources/deadlines; physical task exit governs capacity release, and late results cannot overwrite terminal outcomes.
-- SpEL only reads input and visible ancestor results; deny constructors, type/Bean access, method calls and assignment. Read-only containers do not deep-copy or freeze business objects. Default failure stops new work and allows bounded completion of already running work.
+- 仅接受恰好一个顶层围栏 `mermaid` 代码块,且必须为 `flowchart TD` 或 `flowchart LR`。保留 `start([label])` 与 `finish([label])`。不支持的语法在注册期失败并给出错误码,尽可能附带源码位置。
+- 矩形绑定 singleton `FlowNode<O>` Bean。声明具体的业务输出类型;异构解析器/图使用 `FlowNode<?>`,不用原始类型(类字面量除外)。null 输出合法;下游类型在运行期检查,而非 Mermaid 编译期。
+- 小驼峰任务 ID 等于 Bean ID,除非第一个 `_` 引入非空别名。完整 ID 标识本次调用;Bean ID 不含 `_`。双边框矩形按相同别名规则调用 flow ID。
+- 普通菱形按受限 SpEL 布尔条件选择一条出边。多条匹配失败;零条匹配时至多允许一条 `default` 边,否则失败。保持成对的、结构化的排他区域与未激活边传播。`X` 汇合等待所有入边确定并要求恰好一条激活路径;整体未激活的区域被跳过。
+- `+` 分叉激活所有出边分支;汇合要求所有入路径完成。整体未激活的汇合被跳过;激活/未激活混合输入时失败,而不是当作排他汇合处理。任务多边依赖语义继续支持。
+- 子调用通过完成事件逻辑等待,绝不阻塞工作线程。它们接收原始父输入,隔离调用状态并封装子结果。保持期限/取消传播;拒绝缺失引用、引用环以及业务节点内同步重入引擎。
+- 按就绪依赖调度,而非按图层。Singleton Bean 必须线程安全,调用状态不得放入成员。业务代码与条件求值在根协调锁之外运行。可配置资源/期限必须有界;以任务物理退出为准释放容量,迟到结果不能覆盖终态。
+- SpEL 只读输入与可见祖先结果;拒绝构造器、类型/Bean 访问、方法调用与赋值。只读容器不深拷贝、不冻结业务对象。默认失败语义:停止新工作,允许已在运行的工作有界完成。
 
-## Documentation and references
+## 文档与参考
 
-Read the relevant sections, not every document for every task:
+按任务阅读相关章节,不要每次通读所有文档:
 
-- Workflow/API changes: [requirements](docs/requirements.md), [design](docs/technical-design.md), affected contracts and tests. Update both documents when semantics change; report discrepancies instead of silently changing a contract to match a stale proposal.
-- Syntax/setup changes: [README](README.md), [quick start](docs/quick-start.md), [Boot integration](docs/spring-boot.md).
-- Test changes: [coverage review](docs/testing-coverage.md); keep verified scenarios and remaining gaps distinct.
+- 工作流/API 变更:[requirements](docs/requirements.md)、[design](docs/technical-design.md)、受影响的契约与测试。语义变更时同时更新两份文档;发现不一致要报告,而不是为迁就过时提案悄悄改契约。
+- 语法/接入变更:[README](README.md)、[quick start](docs/quick-start.md)、[Boot 集成](docs/spring-boot.md)。
+- 测试变更:[coverage review](docs/testing-coverage.md);已验证场景与剩余缺口分开陈述。
 
-Use Chinese Javadoc for named production types, including nested types: responsibility, lifecycle, thread safety and limits. Document public methods/constructors, parameters, return/null behavior and meaningful errors; overrides may inherit documented contracts. Record components need `@param`; configuration needs units/defaults/ranges and immutability must distinguish shallow from deep. Explain non-obvious locks, state transitions, cancellation, branch propagation and physical exit. Keep `package-info.java` aligned with package roles.
+命名生产类型(含嵌套类型)使用中文 Javadoc:职责、生命周期、线程安全与限制。公共方法/构造器、参数、返回/null 行为与有意义的错误都要文档化;重写方法可继承已文档化契约。Record 组件需要 `@param`;配置项需要单位/默认值/取值范围,不可变性要区分浅拷贝与深拷贝。解释非显而易见的锁、状态转换、取消、分支传播与物理退出。保持 `package-info.java` 与包角色一致。
 
-## Verification
+## 验证
 
-- Documentation/instruction-only changes: check links, examples, consistency and preserved constraints. No Java suite is required unless executable examples, build settings or behavior changed.
-- Code changes: add/update tests for changed behavior and run affected tests during development. Before submitting code/build changes or a release, run `mvn verify`, then `python3 scripts/check-coverage.py`. `verify` includes `test`; do not run both as separate final gates. Honor CI checks.
-- `mvn verify` also runs a Checkstyle gate (`config/checkstyle/checkstyle.xml`) that enforces the
-  Alibaba Java convention subset for formatting and naming: braces on every control-flow statement,
-  one statement and one variable declaration per line, 120-column limit, no wildcard imports,
-  ordered import groups, and no variable, parameter, field, or record component shorter than three
-  characters outside the whitelist `i`/`j`/`k` (loop counters and lambda parameters), `id`, and
-  `to` (method and type names follow the standard Alibaba patterns but have no length floor). Fix
-  violations by changing the code; do not relax a rule `format` or add a whitelist entry to make a
-  failure pass.
-- Preserve aggregate LINE >= 95% and BRANCH >= 88% over core, Spring and Starter. Examples supply execution data, not production class counts. Never lower thresholds to pass.
-- Use error-code and side-effect assertions for negative cases. Concurrency tests need latches/barriers, bounded waits and cleanup in `finally`; generated tests need fixed seeds and an independent oracle. For parser/scheduler changes, cover relevant races and malformed/combined graphs; test counts alone do not establish completeness.
-- Once relevant checks pass, repeat or broaden them only for a new change, failure or concrete unresolved risk. Report what changed, checks actually run and material limitations; distinguish historical test results from this run.
+- 仅文档/指令变更:检查链接、示例、一致性与约束保真。除非可运行示例、构建设置或行为变化,否则无需运行 Java 套件。
+- 代码变更:为变更行为新增/更新测试,开发期运行受影响测试。提交代码/构建变更或发布前,运行 `mvn verify`,然后 `python3 scripts/check-coverage.py`。`verify` 已包含 `test`,不要把两者分开作为最终门禁。遵守 CI 检查。
+- `mvn verify` 同时运行 Checkstyle 门禁(`config/checkstyle/checkstyle.xml`),强制执行 Alibaba Java 规约子集:每条控制流语句必须有大括号、每行一条语句和一个变量声明、120 列上限、禁止通配符 import、import 分组有序,且变量/参数/字段/record 组件不得短于三个字符,白名单除外:`i`/`j`/`k`(循环计数与 lambda 参数)、`id`、`to`(方法与类型名遵循标准 Alibaba 模式,无长度下限)。通过修改代码修复违例;不得放宽规则 `format` 或添加白名单条目让失败通过。
+- 保持 core、Spring、Starter 聚合 LINE >= 95%、BRANCH >= 88%。Examples 只提供执行数据,不计入生产类数量。绝不降低阈值求通过。
+- 负例用错误码与副作用断言。并发测试需要 latch/barrier、有界等待与 `finally` 清理;生成类测试需要固定种子与独立 oracle。解析器/调度器变更需覆盖相关竞态与畸形/组合图;仅凭测试数量不构成完整性。
+- 相关检查通过后,仅在有新变更、失败或具体未决风险时重复或扩大检查范围。报告实际变更、实际运行的检查与实质局限;历史测试结果与本次运行分开陈述。
