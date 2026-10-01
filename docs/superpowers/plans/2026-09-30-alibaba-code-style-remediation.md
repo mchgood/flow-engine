@@ -21,7 +21,7 @@
 - 按阿里规约【强制】条款补齐全部 **11 处** 缺失的 `@Override`（覆写方法必须标注）：core 测试 5 处（`PackageBoundaryTest` 2、`CompilerContractTest` 1、`RuntimeBoundaryTest` 2）+ `SpelConditionEvaluator` 内部类 6 处（`ReadOnlyMapAccessor` 5、守卫 `Map` 1）。除此之外**不新增**任何注解。
 - 单行 <= **120** 字符；缩进 **4** 空格；禁 Tab；文件末尾保留一个换行；换行符 **LF**。
 - 禁用通配符 import（含静态）；import 分组顺序 `io.github.mchgood` -> `org` -> `com` -> `java` -> `javax`（`com` 目前未使用，为将来依赖预留），静态 import 置底并按字典序。
-- 折行方向：二元运算符换到**下一行开头**；点号与逗号留在**上一行末尾**；第二行相对第一行缩进 4 空格。
+- 折行方向：二元运算符换到**下一行开头**；点号与逗号留在**上一行末尾**。续行相对**语句起始列**缩进 8 空格（方法体一层 4 + 续行一层 4，与 Task 2-4 已落地并过审的形态一致；checkstyle `lineWrappingIndentation=4` 且 `forceStrictCondition=false` 接受该形态）。
 - 注解独占一行（`AnnotationLocation` 的三个 `allowSameline*` 属性全部置 `false`；10.21.4 没有 `allowSamelineSingleAnnotations` 这个属性，写错会让 `TreeWalker` 初始化失败）。
 - 代码中不得出现内联全限定类名，一律改为 import（已知 4 处，见 Task 4/6/8）。
 - 整改过程**只**新增 `docs/superpowers/**`，不改动 `docs/requirements.md`、`docs/technical-design.md`、`docs/quick-start.md`、`docs/spring-boot.md`、`docs/testing-coverage.md`、`README.md`。
@@ -771,7 +771,7 @@ public record EngineConfig(int workerThreads, int queueCapacity, int maxConcurre
 - 一行多变量声明拆成多行，每个声明复制原有 Javadoc 文字（不改写、不新增内容）
 - 超 120 字符按折行方向规则换行
 - 注解移到独占一行（`@Override public X y(){` -> `@Override` 换行 + `public X y() {`）；本任务范围内**不新增** `@Override`（11 处缺失覆写分属 Task 6/7 的文件）
-- record 空体与接口空体统一写作 `{}`
+- record 空体与接口空体统一写作 `{}`；**单语句方法体允许保持一行**（如 `public String code() { return code; }`），`RightCurly` 对 `METHOD_DEF` 取 `alone_or_singleline` 放行；此为 Task 3 已过审的先例，Task 5 及之后保持一致
 - 展开通配符 import
 
 - [ ] **Step 7: 展开本任务的 3 处通配符 import**
