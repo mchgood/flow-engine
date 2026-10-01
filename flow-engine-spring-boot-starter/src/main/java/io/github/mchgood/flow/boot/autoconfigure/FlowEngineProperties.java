@@ -78,6 +78,9 @@ public class FlowEngineProperties {
      */
     private Duration closeTimeout = DEFAULTS.closeTimeout();
 
+    /**
+     * 流程文件自动加载配置，永不为 null。
+     */
     private final Flows flows = new Flows();
 
     /**

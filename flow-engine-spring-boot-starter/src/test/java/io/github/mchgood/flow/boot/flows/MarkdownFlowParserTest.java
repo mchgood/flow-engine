@@ -1,6 +1,8 @@
 package io.github.mchgood.flow.boot.flows;
 
 import io.github.mchgood.flow.exception.FlowException;
+import io.github.mchgood.flow.internal.compiler.FlowCompiler;
+import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 
 import org.junit.jupiter.api.Test;
 
@@ -32,9 +34,57 @@ class MarkdownFlowParserTest {
         Map<String, String> sections = parser.split("file.md", markdown);
         assertThat(sections.keySet()).containsExactly("alpha", "beta");
         assertThat(sections.get("alpha").split("\n", -1)).hasSize(6);
-        assertThat(sections.get("alpha").split("\n", -1)[0]).isEqualTo("intro text");
+        assertThat(sections.get("alpha").split("\n", -1)[0]).isEmpty();
+        assertThat(sections.get("alpha").split("\n", -1)[1]).isEqualTo("# alpha");
         assertThat(sections.get("beta").split("\n", -1)).hasSize(11);
         assertThat(sections.get("beta").split("\n", -1)[6]).isEqualTo("# beta");
+    }
+
+    @Test
+    void sectionsKeepFileLineIndexesViaBlankPadding() {
+        String markdown = String.join("\n",
+            "intro text",
+            "# alpha",
+            "```mermaid",
+            "flowchart TD",
+            "    start([s]) --> finish([f])",
+            "```",
+            "# beta",
+            "```mermaid",
+            "flowchart TD",
+            "    start([s]) --> finish([f])",
+            "```");
+        Map<String, String> sections = parser.split("file.md", markdown);
+        String[] fileLines = markdown.split("\n", -1);
+        int[][] ranges = {{1, 6}, {6, fileLines.length}};
+        for (int k = 0; k < sections.size(); k++) {
+            String[] sectionLines = sections.get(k == 0 ? "alpha" : "beta").split("\n", -1);
+            for (int i = ranges[k][0]; i < ranges[k][1]; i++) {
+                assertThat(sectionLines[i]).isEqualTo(fileLines[i]);
+            }
+        }
+    }
+
+    @Test
+    void compilerErrorsKeepFileAbsoluteLinesInSection() {
+        String markdown = String.join("\n",
+            "# alpha",
+            "```mermaid",
+            "flowchart TD",
+            "    start([s]) --> finish([f])",
+            "```",
+            "# beta",
+            "```mermaid",
+            "flowchart TD",
+            "    start([s]) --> miss[\"x\"]",
+            "    miss --> finish([f])",
+            "```");
+        Map<String, String> sections = parser.split("file.md", markdown);
+        FlowCompiler compiler = new FlowCompiler(beanId -> null, new SpelConditionEvaluator());
+        FlowException failure = assertThrows(FlowException.class,
+            () -> compiler.compile("beta", sections.get("beta")));
+        assertThat(failure.code()).isEqualTo("BEAN_NOT_FOUND");
+        assertThat(failure.getMessage()).contains("beta:9").doesNotContain("beta:3");
     }
 
     @Test

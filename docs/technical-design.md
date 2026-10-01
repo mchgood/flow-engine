@@ -142,7 +142,7 @@ FlowResult result = engine.execute("createOrder", request,
     ExecutionOptions.withTimeout(Duration.ofSeconds(30)));
 ```
 
-loadTextByApplication 表示宿主自己的读取逻辑。flowId 使用不含下划线的小驼峰形式。资源适配器可从合规文件名推导 ID；内容入口必须显式传 flowId，不能假定存在文件名。
+loadTextByApplication 表示宿主自己的读取逻辑。flowId 使用不含下划线的小驼峰形式。资源适配器以一级标题文本推导 flowId；内容入口必须显式传 flowId，不能假定存在文件名。
 
 注册流程需先完成语法、Bean 与流程引用解析，再在注册锁内原子发布不可变注册表快照；同 ID 冲突即报错，不替换已有定义。registerAll 支持一批文档互相引用，全部成功才发布；单文件 register 要求依赖已注册。执行读取固定快照，运行期不重读文件。
 
@@ -153,8 +153,8 @@ core 的 spi 包定义来源契约：`FlowDocument(sourceName, markdown)` 携带
 实现随 Boot Starter 提供；外部数据源（如 Nacos）实现 `FlowSource` 即可接入，无需修改框架。
 
 多流程文档约定：仅 ATX 一级标题切分段落，标题文本即 flowId（小驼峰），围栏代码块内的
-`#` 行不参与切分；段落采用前缀切片输出（文件第 1 行至下一个一级标题之前），核心编译器
-报错行号与原文件一致。首个标题前的导语不得包含 mermaid 围栏块；每个段落须恰有一个顶层
+`#` 行不参与切分；段落从各自一级标题起切片，之前的行以空行补齐，核心编译器报错行号与
+原文件一致。首个标题前的导语不得包含 mermaid 围栏块；每个段落须恰有一个顶层
 mermaid 块；既无标题也无 mermaid 块的文档视为说明文档跳过。切分层仅新增错误码
 INVALID_FLOW_HEADING，其余复用编译器既有错误码并附来源与行号。
 

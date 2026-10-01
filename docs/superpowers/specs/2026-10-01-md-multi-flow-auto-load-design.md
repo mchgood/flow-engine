@@ -58,8 +58,9 @@ locations → LocalMarkdownFlowSource.load() → List<FlowDocument>
 2. ``` 或 `~~~` 围栏(含 mermaid 块)内的 `#` 行不切分,需跟踪围栏开关状态;
 3. H1 文本 trim 后必须匹配 `[a-z][A-Za-z0-9]*`(与 `FlowCompiler` 的 flowId 规则一致,
    见 FlowCompiler.java:71),否则报新错误码 `INVALID_FLOW_HEADING`,消息含文件与行号;
-4. section 输出采用**前缀切片**:每个 section 的 markdown = 文件第 1 行到下一个 H1 行之前的
-   全部行。因此 compiler 报错中的行号与原文件行号一致,无需换算,定位精确;
+4. section 输出从**各自 H1 行**起切片到下一个 H1 行之前(最后一个 section 到文件末尾),并把
+   H1 之前的行以等量空行补齐,使 section 内行号与原文件行号一致——compiler 报错行号即原文件
+   行号,且每个 section 恰含本段的 mermaid 块;
 5. 首个 H1 之前的导语被忽略,但导语中不允许出现 mermaid 围栏块(避免归属歧义),parser 自检并报错
    (含行号);
 6. 每个 section 必须恰好包含一个顶层 mermaid 围栏块(由 compiler 的 `MERMAID_BLOCK_COUNT`
@@ -139,9 +140,9 @@ flow-engine:
 
 ## 8. 风险与权衡记录
 
-- **前缀切片使各 section 的 definitionHash 包含文件前缀内容**:hash 语义仍是"参与编译的原始
-  Markdown 摘要",可接受;换来行号零换算的精确定位;
+- **各 section 的 definitionHash 为标题偏移空行补齐后的切片摘要**,不含其他段落内容与文件导语;
+  行号通过空行补齐保持与原文件一致;
 - **默认开启 + 默认路径**:classpath 恰好存在 `flows/*.md` 的存量应用行为会变化——这是用户
   明确选择的开箱即用取舍,`flow-engine.flows.enabled=false` 一键关闭;
-- **导语归属**:导语并入每个 section 是前缀切片的自然结果,parser 通过"导语禁 mermaid"校验
-  消除歧义。
+- **导语归属**:导语不并入任何 section(空行补齐仅保持行号对齐,不引入导语内容),parser 通过
+  "导语禁 mermaid"校验消除归属歧义。

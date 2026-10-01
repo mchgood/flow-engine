@@ -22,8 +22,8 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * Spring Boot 引擎自动装配入口，通过 AutoConfiguration.imports 发现。
- * <p>flow-engine.enabled 默认为 true。四类基础设施分别按类型退让，允许宿主覆盖
- * 节点解析器、条件求值器、资源配置或整个引擎。flow-engine.flows.enabled 默认开启时，
+ * <p>flow-engine.enabled 默认为 true。基础设施分别按类型退让，允许宿主覆盖
+ * 节点解析器、条件求值器、资源配置、整个引擎或 FlowSourceRegistrar。flow-engine.flows.enabled 默认开启时，
  * 在全部单例就绪后把 FlowSource 提供的 Markdown 文档按一级标题切分并原子注册（本地默认
  * 扫描 classpath*:flows/*.md，可用配置覆盖或整体关闭）；绝不触发执行。
  * 自动创建引擎由容器在关闭时调用 close；核心与普通 Spring 模块不依赖本配置。
@@ -99,13 +99,14 @@ public class FlowEngineAutoConfiguration {
     }
 
     /**
-     * 装配来源注册器，在全部单例就绪后执行一次注册。
+     * 装配来源注册器，在全部单例就绪后执行一次注册；宿主自定义 FlowSourceRegistrar Bean 时此工厂退让。
      *
      * @param engines 引擎提供者，可为空
      * @param sources 来源提供者，可为空
      * @return 自动加载注册器
      */
     @Bean
+    @ConditionalOnMissingBean(FlowSourceRegistrar.class)
     @ConditionalOnProperty(prefix = "flow-engine.flows", name = "enabled", havingValue = "true",
             matchIfMissing = true)
     public FlowSourceRegistrar flowSourceRegistrar(ObjectProvider<FlowEngine> engines,

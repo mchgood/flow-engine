@@ -153,6 +153,31 @@ class FlowSourceRegistrarTest {
         }
     }
 
+    @Test
+    void multiHeadingFileRegistersEverySection() {
+        String multi = String.join("\n",
+            "# masterFlow",
+            "```mermaid",
+            "flowchart TD",
+            "    start([开始]) --> helperFlow[[\"调用辅助\"]]",
+            "    helperFlow --> finish([结束])",
+            "```",
+            "# helperFlow",
+            "```mermaid",
+            "flowchart TD",
+            "    start([开始]) --> check[\"处理\"]",
+            "    check --> finish([结束])",
+            "```");
+        TestSource source = new TestSource("custom",
+            List.of(new FlowDocument("memory:multi.md", multi + "\n")), new AtomicInteger());
+        runner.withBean(FlowSource.class, () -> source).run(context -> {
+            assertThat(context).hasNotFailed();
+            FlowEngine engine = context.getBean(FlowEngine.class);
+            assertThat(engine.execute("masterFlow", null).succeeded()).isTrue();
+            assertThat(engine.execute("helperFlow", null).succeeded()).isTrue();
+        });
+    }
+
     private static String document(String flowId) {
         return "# " + flowId + "\n" + PLAIN;
     }

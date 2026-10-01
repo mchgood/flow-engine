@@ -13,8 +13,10 @@ import java.util.regex.Pattern;
 /**
  * 将整份 Markdown 文档按一级标题切分为多个流程段落。
  * <p>仅 ATX 一级标题（单个 # 加空白）开启新段落，标题文本即 flowId，须匹配小驼峰规则；
- * 围栏代码块内的 # 行不参与切分。段落输出采用前缀切片：从文件第 1 行到下一个一级标题之前，
- * 保证核心编译器报错行号与原文件一致。首个标题前的导语被忽略，但导语中不得出现 mermaid
+ * 围栏代码块内的 # 行不参与切分。段落从各自一级标题行起切片到下一个一级标题之前（最后一个
+ * 段落切到文件末尾），标题之前的行以等量空行（\n）补齐：每个段落只包含本段的 mermaid 块，
+ * 且段落内行号（以空行补齐）与原文件行号一致，编译器报错行号仍可直接定位原文件。
+ * 首个标题前的导语被忽略，但导语中不得出现 mermaid
  * 围栏块。本类无状态、线程安全；不解析 Mermaid 图形，图形校验由核心编译器完成。
  * <p>限制：标题去首尾空白后必须匹配 [a-z][A-Za-z0-9]*；同一文件重复标题、段落缺少 mermaid
  * 块均报错；既无标题也无 mermaid 块的文档返回空映射（视为纯说明文档）。
@@ -105,8 +107,9 @@ public final class MarkdownFlowParser {
         Map<String, String> sections = new LinkedHashMap<>();
         List<String> view = Arrays.asList(lines);
         for (int k = 0; k < headingLines.size(); k++) {
+            int start = headingLines.get(k);
             int end = k + 1 < headingLines.size() ? headingLines.get(k + 1) : lines.length;
-            sections.put(flowIds.get(k), String.join("\n", view.subList(0, end)));
+            sections.put(flowIds.get(k), "\n".repeat(start) + String.join("\n", view.subList(start, end)));
         }
         return sections;
     }
