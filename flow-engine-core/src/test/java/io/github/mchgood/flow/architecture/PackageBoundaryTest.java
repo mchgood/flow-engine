@@ -2,12 +2,17 @@ package io.github.mchgood.flow.architecture;
 
 import io.github.mchgood.flow.internal.compiler.FlowCompiler;
 import io.github.mchgood.flow.node.NodeContext;
-import io.github.mchgood.flow.spi.*;
+import io.github.mchgood.flow.spi.CompiledCondition;
+import io.github.mchgood.flow.spi.ConditionEvaluator;
+import io.github.mchgood.flow.spi.SourceLocation;
 import org.junit.jupiter.api.Test;
-import java.nio.file.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
 import java.util.regex.Pattern;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * 验证依赖方向和编译图不可修改，防止包职责边界退化。
@@ -19,7 +24,7 @@ class PackageBoundaryTest {
         Set<String> contracts = Set.of("api", "node", "spi", "config", "result", "exception");
         Pattern imports = Pattern.compile("import\\s+(?:static\\s+)?io\\.github\\.mchgood\\.flow\\.([\\w.]+)");
         try (var files = Files.walk(base)) {
-            for (Path file : files.filter(p -> p.toString().endsWith(".java")).toList()) {
+            for (Path file : files.filter(path -> path.toString().endsWith(".java")).toList()) {
                 String relative = base.relativize(file).toString().replace('\\', '/');
                 var matcher = imports.matcher(Files.readString(file));
                 while (matcher.find()) {
@@ -41,7 +46,9 @@ class PackageBoundaryTest {
     @Test
     void compilerPublishesReadOnlyTopologyWithConsistentEdges() {
         ConditionEvaluator unused = new ConditionEvaluator() {
+            @Override
             public CompiledCondition parse(String text, SourceLocation location) { throw new AssertionError(); }
+            @Override
             public boolean evaluate(CompiledCondition condition, NodeContext context) { throw new AssertionError(); }
         };
         var graph = new FlowCompiler(id -> context -> null, unused).compile("sample", """
