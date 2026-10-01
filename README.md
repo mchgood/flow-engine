@@ -37,11 +37,16 @@ Spring Boot 应用引入 Starter（尚未发布 Maven Central，请先在源码�
 业务节点实现 `FlowNode` 并注册为 Spring Bean；引擎自动装配，可直接注入 `FlowEngine`：
 
 ```java
-@Bean
-FlowNode<Map<String, Object>> validateOrder() {
-    return context -> Map.of("valid", true);
+@Component
+public class ValidateOrder implements FlowNode<Map<String, Object>> {
+    @Override
+    public Map<String, Object> execute(NodeContext context) {
+        return Map.of("valid", true);
+    }
 }
 ```
+
+类名首字母小写即节点 ID（`ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致；不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。
 
 完整启动示例、`flow-engine.*` 配置和覆盖规则见 [Spring Boot 接入](docs/spring-boot.md)。普通 Spring 项目仍可使用 `flow-engine-spring` 手动装配。
 

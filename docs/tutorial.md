@@ -43,7 +43,7 @@ mvn install
 </dependency>
 ```
 
-**第一步：定义业务节点。** 每个矩形节点对应一个实现 `FlowNode` 的 singleton Bean，Bean 名称就是节点 ID。下面一个用 lambda 形式，一个用显式方法形式：
+**第一步：定义业务节点。** 每个矩形节点对应一个实现 `FlowNode` 的 singleton Bean，Bean 名称就是节点 ID。节点用 `@Component` 类定义：类名首字母小写即节点 ID（`ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致；不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。下面一个用默认命名，一个用显式命名：
 
 ```java
 package example;
@@ -58,30 +58,30 @@ import io.github.mchgood.flow.spring.SpringNodeResolver;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
 @Configuration
 public class FlowConfiguration {
 
-    // lambda 形式：一行定义一个校验节点
-    @Bean
-    public FlowNode<Map<String, Object>> validateOrder() {
-        return context -> {
+    // 默认命名：类名 ValidateOrder 首字母小写即节点 ID validateOrder
+    @Component
+    static class ValidateOrder implements FlowNode<Map<String, Object>> {
+        @Override
+        public Map<String, Object> execute(NodeContext context) {
             Map<?, ?> input = context.input(Map.class);
             return Map.of("valid", input.containsKey("orderId"));
-        };
+        }
     }
 
-    // 方法形式：显式实现 execute，适合逻辑较多的节点
-    @Bean
-    public FlowNode<String> echo() {
-        return new FlowNode<>() {
-            @Override
-            public String execute(NodeContext context) {
-                return "echo: " + context.input();
-            }
-        };
+    // 显式命名：类名 EchoNode 的默认 Bean 名是 echoNode，与节点 ID 不一致，用 @Component("echo") 指定
+    @Component("echo")
+    static class EchoNode implements FlowNode<String> {
+        @Override
+        public String execute(NodeContext context) {
+            return "echo: " + context.input();
+        }
     }
 
     // 手动装配引擎；容器关闭时自动调用 close()
@@ -200,7 +200,7 @@ flow-engine:
 
 其他形状（圆角、stadium、子图、循环等）不支持，注册期会以错误码失败。
 
-**flowId 与 `_` 别名规则。** 节点 ID 默认等于 Bean ID；当第一个 `_` 之后有非空后缀时，该后缀是别名，实际调用 `_` 前面的 Bean ID。例如 `validateOrder_before` 与 `validateOrder_after` 都调用 `validateOrder` Bean。完整节点 ID（含别名）在本次执行中唯一标识这次调用：状态、结果、超时都按完整 ID 隔离，所以两次调用互不干扰。
+**flowId 与 `_` 别名规则。** 节点的 Bean 名默认是 `@Component` 类名首字母小写（如 `ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致，不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。节点 ID 默认等于 Bean ID；当第一个 `_` 之后有非空后缀时，该后缀是别名，实际调用 `_` 前面的 Bean ID。例如 `validateOrder_before` 与 `validateOrder_after` 都调用 `validateOrder` Bean。完整节点 ID（含别名）在本次执行中唯一标识这次调用：状态、结果、超时都按完整 ID 隔离，所以两次调用互不干扰。
 
 **条件网关。** 普通菱形一入多出，每条出边用 `|"条件"|` 写受限 SpEL 表达式，引擎求值后恰好选择一条出边：
 
@@ -285,10 +285,11 @@ FlowResult result = engine.execute("orderFlow", input,
 
 ### 6. 扩展点全景
 
-这章你会学到：框架暴露的四个扩展点分别何时触发、用什么方式覆盖默认实现。
+这章你会学到：框架暴露的四个扩展点分别何时触发、用什么方式覆盖默认实现，以及业务节点自身的注册方式。
 
 | 扩展点 | 触发时机 | 典型场景 | 覆盖方式 |
 | --- | --- | --- | --- |
+| 业务节点 `FlowNode` | 注册期：按节点 ID 解析矩形任务节点 | 常规业务任务 | 定义 `@Component` 类（类名首字母小写须等于节点 ID，否则显式命名）；lambda 或动态注册仍可用 `@Bean` 方法 |
 | `NodeResolver` | 注册期：按 Bean ID 把矩形节点绑定为可调用节点 | 非 Spring 容器、多容器、静态注册表 | 定义 `NodeResolver` Bean（普通 Spring 直接传入构造器） |
 | `ConditionEvaluator` | 注册期 `parse`，运行期 `evaluate` | 接入规则引擎、决策服务 | 定义 `ConditionEvaluator` Bean |
 | `FlowSource` | 启动期：提供流程 Markdown 文档 | Nacos、数据库、远程配置中心 | 定义 `FlowSource` Bean（定义后本地文件来源退让，多个来源可共存） |
@@ -296,13 +297,14 @@ FlowResult result = engine.execute("orderFlow", input,
 
 约定：
 
+- 表中除业务节点外的四行才是覆盖默认实现的扩展点；业务节点不是扩展点，`@Component` 类是常规注册方式，`NodeResolver` 等扩展点仍以 Bean 方式覆盖。
 - 在 Spring Boot 中，宿主定义同类型 Bean 即可，默认实现通过 `@ConditionalOnMissingBean` 自动退让；每种类型通常只定义一个，存在多个候选时需要 `@Primary` 明确选择。
 - 在普通 Spring 中没有"退让"的概念，直接把你的实现传入 `new DefaultFlowEngine(resolver, evaluator, config)`。
 - 替换 `ConditionEvaluator` 时，只读、严格 Boolean 等语义约束由你自行维持（见第 8 章硬约束）。
 
 ### 7. 实战 1：自定义 NodeResolver
 
-这章你会学到：如何脱离 Spring 容器按 Bean ID 提供任务节点，以及如何测试缺失节点的失败路径。
+这章你会学到：除了容器内的 `@Component` 节点类，如何脱离 Spring 容器按 Bean ID 提供任务节点，以及如何测试缺失节点的失败路径。
 
 `NodeResolver` 是函数式接口，只在注册期被调用（不处理网关与子流程调用），解析结果存入编译图跨执行复用。最常见的需求是用静态注册表替代容器查找：
 

@@ -30,39 +30,53 @@ Spring 应用通常只需要引入 Spring 适配模块，它会传递依赖核�
 
 ## 3. 定义业务节点
 
-每个矩形任务节点对应一个实现 `FlowNode` 的 singleton Spring Bean。Bean 名称就是流程图中的节点 ID。
+每个矩形任务节点对应一个实现 `FlowNode` 的 singleton Spring Bean。Bean 名称就是流程图中的节点 ID。推荐用 `@Component` 类定义节点：类名首字母小写即 Bean 名，须与图中节点 ID 一致，否则显式 `@Component("节点ID")`；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。
 
 ```java
 import io.github.mchgood.flow.api.FlowEngine;
-import io.github.mchgood.flow.api.ExecutionOptions;
 import io.github.mchgood.flow.node.FlowNode;
-import io.github.mchgood.flow.config.EngineConfig;
-import io.github.mchgood.flow.result.FlowResult;
+import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 import io.github.mchgood.flow.spring.SpringNodeResolver;
 
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+
 @Configuration
 public class FlowConfiguration {
 
-    @Bean
-    public FlowNode<Map<String, Object>> validateOrder() {
-        return context -> {
+    // 默认命名：类名 ValidateOrder 首字母小写即节点 ID validateOrder
+    @Component
+    static class ValidateOrder implements FlowNode<Map<String, Object>> {
+        @Override
+        public Map<String, Object> execute(NodeContext context) {
             Map<?, ?> input = context.input(Map.class);
             return Map.of("valid", input.containsKey("amount"));
-        };
+        }
     }
 
-    @Bean
-    public FlowNode<Map<String, Object>> autoProcess() {
-        return context -> Map.of("processed", true);
+    @Component
+    static class AutoProcess implements FlowNode<Map<String, Object>> {
+        @Override
+        public Map<String, Object> execute(NodeContext context) {
+            return Map.of("processed", true);
+        }
     }
 
-    @Bean
-    public FlowNode<Map<String, Object>> manualReview() {
-        return context -> Map.of("reviewRequired", true);
+    @Component
+    static class ManualReview implements FlowNode<Map<String, Object>> {
+        @Override
+        public Map<String, Object> execute(NodeContext context) {
+            return Map.of("reviewRequired", true);
+        }
     }
 
+    // 手动装配引擎；容器关闭时自动调用 close()
     @Bean(destroyMethod = "close")
     public FlowEngine flowEngine(ConfigurableListableBeanFactory beans) {
         return new DefaultFlowEngine(
@@ -188,15 +202,16 @@ engine.registerAll(Map.of(
 节点只能读取当前节点的祖先结果，不能读取兄弟分支或父流程内部结果：
 
 ```java
-@Bean
-public FlowNode<Map<String, Object>> saveOrder() {
-    return context -> {
+@Component
+public class SaveOrder implements FlowNode<Map<String, Object>> {
+    @Override
+    public Map<String, Object> execute(NodeContext context) {
         Map<?, ?> validation = context.ancestorValue(
             "validateOrder_before",
             Map.class
         );
         return Map.of("saved", validation.get("valid"));
-    };
+    }
 }
 ```
 
@@ -258,9 +273,12 @@ mvn -pl flow-engine-examples -am test
 ```java
 public record ValidationResult(boolean valid) {}
 
-@Bean
-public FlowNode<ValidationResult> validateOrder() {
-    return context -> new ValidationResult(true);
+@Component
+public class ValidateOrder implements FlowNode<ValidationResult> {
+    @Override
+    public ValidationResult execute(NodeContext context) {
+        return new ValidationResult(true);
+    }
 }
 ```
 

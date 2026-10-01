@@ -18,13 +18,35 @@ Starter 传递引入 Spring 适配、core 和基础 Boot Starter，不引入 Web
 
 ## 2. 最小可运行应用
 
-将下面代码保存为宿主项目中的 `src/main/java/example/DemoApplication.java`。这是一个在启动后注册并执行流程的示例；实际业务可把注册放在初始化阶段，把执行放在业务 Service 中。
+业务节点是普通的 `@Component` 类。将节点保存为宿主项目中的 `src/main/java/example/Greet.java`：
+
+```java
+package example;
+
+import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.node.NodeContext;
+
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
+
+@Component
+public class Greet implements FlowNode<String> {
+    @Override
+    public String execute(NodeContext context) {
+        return "Hello, " + context.input(Map.class).get("name");
+    }
+}
+```
+
+类名首字母小写即 Bean 名（`Greet` → `greet`），必须与图中节点 ID 一致；不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。
+
+将宿主应用保存为 `src/main/java/example/DemoApplication.java`。这是一个在启动后注册并执行流程的示例；实际业务可把注册放在初始化阶段，把执行放在业务 Service 中。
 
 ```java
 package example;
 
 import io.github.mchgood.flow.api.FlowEngine;
-import io.github.mchgood.flow.node.FlowNode;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -35,11 +57,6 @@ import java.util.Map;
 public class DemoApplication {
     public static void main(String[] args) {
         SpringApplication.run(DemoApplication.class, args);
-    }
-
-    @Bean
-    FlowNode<String> greet() {
-        return context -> "Hello, " + context.input(Map.class).get("name");
     }
 
     @Bean
