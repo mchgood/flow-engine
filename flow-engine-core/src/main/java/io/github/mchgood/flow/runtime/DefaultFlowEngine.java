@@ -15,6 +15,9 @@ import io.github.mchgood.flow.result.FlowStatus;
 import io.github.mchgood.flow.result.NodeRecord;
 import io.github.mchgood.flow.result.NodeStatus;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
+import io.github.mchgood.flow.spi.FlowExecutionInterceptor;
+import io.github.mchgood.flow.spi.NodeExecutionInterceptor;
+import io.github.mchgood.flow.spi.NodeOutcome;
 import io.github.mchgood.flow.spi.NodeResolver;
 
 import java.time.Duration;
@@ -52,6 +55,8 @@ import static io.github.mchgood.flow.internal.graph.Definition.Type;
  * <p>每个根调用由调用线程协调其整棵子执行树，业务任务和条件求值交给共享有界线程池。
  * 注册使用独立锁和不可变快照；每棵执行树的状态由 Root.lock 串行保护，不持锁调用业务代码。
  * 子流程与父流程共享协调器，不占用工作线程等待子流程，因此单工作线程也能执行嵌套流程。
+ * 流程级拦截器仅在根流程上、节点级拦截器仅在 TASK 节点上触发，且全部钩子都在
+ * 根协调锁外按装配顺序通知；前置拦截失败以 INTERCEPTOR_FAILED 快速失败，其余钩子异常只记录。
  * <p>逻辑结果发布后拒绝迟到写入；工作额度直到任务物理退出或成功移出队列才释放。
  * 输入和业务输出不深拷贝；节点及扩展实现必须满足并发使用约定。实例应由宿主生命周期统一关闭。
  */
@@ -62,6 +67,8 @@ public final class DefaultFlowEngine implements FlowEngine {
     private final FlowCompiler compiler;
     private final ConditionEvaluator evaluator;
     private final EngineConfig config;
+    private final List<FlowExecutionInterceptor> flowInterceptors;
+    private final List<NodeExecutionInterceptor> nodeInterceptors;
     private final ThreadPoolExecutor workerPool;
     private final Semaphore admissionPermits;
     private final Object registryLock = new Object();
@@ -89,6 +96,23 @@ public final class DefaultFlowEngine implements FlowEngine {
      * @throws NullPointerException 任一参数为 null
      */
     public DefaultFlowEngine(NodeResolver resolver, ConditionEvaluator evaluator, EngineConfig config) {
+        this(resolver, evaluator, config, List.of(), List.of());
+    }
+
+    /**
+     * 创建带执行拦截器的引擎；无拦截器需求时使用三参构造器。
+     *
+     * @param resolver 注册期节点绑定扩展
+     * @param evaluator 注册期编译及执行期求值扩展
+     * @param config 固定资源与期限配置
+     * @param flowInterceptors 根流程拦截器，按列表顺序通知；复制保存，允许为空列表
+     * @param nodeInterceptors 业务节点拦截器，按列表顺序通知；复制保存，允许为空列表
+     * @throws NullPointerException 任一参数为 null 或列表含 null 元素
+     */
+    public DefaultFlowEngine(NodeResolver resolver, ConditionEvaluator evaluator, EngineConfig config,
+            List<FlowExecutionInterceptor> flowInterceptors, List<NodeExecutionInterceptor> nodeInterceptors) {
+        this.flowInterceptors = List.copyOf(flowInterceptors);
+        this.nodeInterceptors = List.copyOf(nodeInterceptors);
         this.evaluator = Objects.requireNonNull(evaluator);
         this.config = Objects.requireNonNull(config);
         compiler = new FlowCompiler(Objects.requireNonNull(resolver), evaluator);
@@ -202,7 +226,20 @@ public final class DefaultFlowEngine implements FlowEngine {
             root.executions.add(root.main);
             roots.add(root);
         }
+        for (var interceptor : flowInterceptors) {
+            try {
+                interceptor.beforeFlow(id, root.main.id, input);
+            } catch (Throwable failure) {
+                roots.remove(root);
+                admissionPermits.release();
+                if (failure instanceof VirtualMachineError virtualMachineError) {
+                    throw virtualMachineError;
+                }
+                throw new FlowException("INTERCEPTOR_FAILED", "beforeFlow: " + id, failure);
+            }
+        }
         boolean interrupted = false;
+        FlowResult result;
         root.lock.lock();
         try {
             while (root.main.result == null) {
@@ -222,7 +259,7 @@ public final class DefaultFlowEngine implements FlowEngine {
                     settle(root);
                 }
             }
-            return root.main.result;
+            result = root.main.result;
         } finally {
             root.lock.unlock();
             roots.remove(root);
@@ -231,6 +268,8 @@ public final class DefaultFlowEngine implements FlowEngine {
                 Thread.currentThread().interrupt();
             }
         }
+        notifyFlow(result);
+        return result;
     }
 
     /**
@@ -737,9 +776,11 @@ public final class DefaultFlowEngine implements FlowEngine {
     }
 
     /**
-     * 工作线程的执行入口；先持锁确认准入，再解锁执行 Bean 或整组条件。
+     * 工作线程的执行入口；先持锁确认准入，再解锁执行前置拦截、Bean 或整组条件。
      * <p>返回和异常都重新持锁先检查期限，防止迟到成功覆盖超时；所有条件都求值，
      * 多条为真时失败，不依赖 Mermaid 边顺序。ThreadLocal 阻止当前引擎的同步重入。
+     * TASK 节点的前置拦截与终态通知均在锁外进行：前置拦截抛出的异常包装为
+     * INTERCEPTOR_FAILED 走失败传播，后置与终态钩子异常只记录。
      */
     private void runNode(RuntimeNode node, NodeContext context) {
         Root root = node.execution.root;
@@ -763,6 +804,16 @@ public final class DefaultFlowEngine implements FlowEngine {
             Object value;
             String selected = null;
             if (node.spec.type == Type.TASK) {
+                for (var interceptor : nodeInterceptors) {
+                    try {
+                        interceptor.beforeNode(context);
+                    } catch (Throwable failure) {
+                        if (failure instanceof VirtualMachineError virtualMachineError) {
+                            throw virtualMachineError;
+                        }
+                        throw new FlowException("INTERCEPTOR_FAILED", "beforeNode: " + node.spec.id, failure);
+                    }
+                }
                 value = node.spec.bean.execute(context);
             } else {
                 Edge match = null;
@@ -792,15 +843,19 @@ public final class DefaultFlowEngine implements FlowEngine {
                 value = null;
             }
             root.lock.lock();
+            NodeOutcome outcome = null;
             try {
                 expire(root);
                 success(node, value, selected);
                 root.wakeup.signalAll();
+                outcome = outcomeOf(node);
             } finally {
                 root.lock.unlock();
             }
+            notifyNode(node, context, outcome);
         } catch (Throwable failure) {
             root.lock.lock();
+            NodeOutcome outcome = null;
             try {
                 expire(root);
                 fail(node, NodeStatus.FAILED,
@@ -809,9 +864,11 @@ public final class DefaultFlowEngine implements FlowEngine {
                                 ? failure.getClass().getSimpleName()
                                 : failure.getMessage());
                 root.wakeup.signalAll();
+                outcome = outcomeOf(node);
             } finally {
                 root.lock.unlock();
             }
+            notifyNode(node, context, outcome);
             if (failure instanceof VirtualMachineError error) {
                 throw error;
             }
@@ -825,6 +882,80 @@ public final class DefaultFlowEngine implements FlowEngine {
      */
     private static boolean terminal(NodeStatus status) {
         return status != NodeStatus.PENDING && status != NodeStatus.RUNNING;
+    }
+
+    /**
+     * 持根锁把节点实际终态固化为拦截器快照；无错误记录时按状态推导。
+     */
+    private NodeOutcome outcomeOf(RuntimeNode node) {
+        if (node.error != null) {
+            return new NodeOutcome(null, node.error.code(), node.error.message());
+        }
+        if (node.status == NodeStatus.SUCCEEDED) {
+            return new NodeOutcome(node.value, null, null);
+        }
+        return new NodeOutcome(null, "NODE_FAILED", node.status.name());
+    }
+
+    /**
+     * 根锁外按装配顺序通知流程级拦截器；afterFlow 必调，随后按终态互斥通知。
+     * 钩子异常记录后忽略，不改变已发布终态；VirtualMachineError 照常上抛。
+     */
+    private void notifyFlow(FlowResult result) {
+        for (var interceptor : flowInterceptors) {
+            try {
+                interceptor.afterFlow(result);
+            } catch (Throwable failure) {
+                if (failure instanceof VirtualMachineError virtualMachineError) {
+                    throw virtualMachineError;
+                }
+                LOG.log(System.Logger.Level.WARNING, "flow-interceptor-thrown afterFlow", failure);
+            }
+            try {
+                if (result.succeeded()) {
+                    interceptor.onSuccess(result);
+                } else {
+                    interceptor.onFailure(result);
+                }
+            } catch (Throwable failure) {
+                if (failure instanceof VirtualMachineError virtualMachineError) {
+                    throw virtualMachineError;
+                }
+                LOG.log(System.Logger.Level.WARNING, "flow-interceptor-thrown terminal", failure);
+            }
+        }
+    }
+
+    /**
+     * 根锁外按装配顺序通知节点级拦截器；仅 TASK 节点且已到达终态时触发，
+     * afterNode 必调，随后按终态互斥通知。钩子异常记录后忽略，不改变节点与流程终态。
+     */
+    private void notifyNode(RuntimeNode node, NodeContext context, NodeOutcome outcome) {
+        if (outcome == null || nodeInterceptors.isEmpty() || node.spec.type != Type.TASK) {
+            return;
+        }
+        for (var interceptor : nodeInterceptors) {
+            try {
+                interceptor.afterNode(context, outcome);
+            } catch (Throwable failure) {
+                if (failure instanceof VirtualMachineError virtualMachineError) {
+                    throw virtualMachineError;
+                }
+                LOG.log(System.Logger.Level.WARNING, "node-interceptor-thrown afterNode", failure);
+            }
+            try {
+                if (outcome.succeeded()) {
+                    interceptor.onSuccess(context, outcome.value());
+                } else {
+                    interceptor.onFailure(context, outcome.errorCode(), outcome.message());
+                }
+            } catch (Throwable failure) {
+                if (failure instanceof VirtualMachineError virtualMachineError) {
+                    throw virtualMachineError;
+                }
+                LOG.log(System.Logger.Level.WARNING, "node-interceptor-thrown terminal", failure);
+            }
+        }
     }
 
     /**
