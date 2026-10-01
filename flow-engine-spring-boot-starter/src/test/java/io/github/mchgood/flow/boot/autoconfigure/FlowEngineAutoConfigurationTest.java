@@ -16,7 +16,9 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -30,7 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class FlowEngineAutoConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner().
-        withConfiguration(AutoConfigurations.of(FlowEngineAutoConfiguration.class));
+        withConfiguration(AutoConfigurations.of(FlowEngineAutoConfiguration.class)).
+        withUserConfiguration(AutoLoadNodes.class);
     private static final String FLOW = """
         ```mermaid
         flowchart TD
@@ -232,7 +235,24 @@ class FlowEngineAutoConfigurationTest {
             });
     }
 
+    /**
+     * 提供默认路径自动加载测试资源所需的业务节点。
+     */
+    @Configuration(proxyBeanMethods = false)
+    static class AutoLoadNodes {
+        @Bean
+        FlowNode<?> check() {
+            return context -> context.input();
+        }
+
+        @Bean
+        FlowNode<?> pack() {
+            return context -> context.input();
+        }
+    }
+
     @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration
+    @Import(AutoLoadNodes.class)
     static class BootHost {}
 }

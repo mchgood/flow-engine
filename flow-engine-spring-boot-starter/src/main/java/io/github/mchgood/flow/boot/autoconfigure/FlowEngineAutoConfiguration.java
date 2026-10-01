@@ -1,13 +1,17 @@
 package io.github.mchgood.flow.boot.autoconfigure;
 
 import io.github.mchgood.flow.api.FlowEngine;
+import io.github.mchgood.flow.boot.flows.FlowSourceRegistrar;
+import io.github.mchgood.flow.boot.flows.LocalMarkdownFlowSource;
 import io.github.mchgood.flow.config.EngineConfig;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
+import io.github.mchgood.flow.spi.FlowSource;
 import io.github.mchgood.flow.spi.NodeResolver;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 import io.github.mchgood.flow.spring.SpringNodeResolver;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -19,7 +23,9 @@ import org.springframework.context.annotation.Bean;
 /**
  * Spring Boot 引擎自动装配入口，通过 AutoConfiguration.imports 发现。
  * <p>flow-engine.enabled 默认为 true。四类基础设施分别按类型退让，允许宿主覆盖
- * 节点解析器、条件求值器、资源配置或整个引擎；不会扫描流程文件、注册流程或触发执行。
+ * 节点解析器、条件求值器、资源配置或整个引擎。flow-engine.flows.enabled 默认开启时，
+ * 在全部单例就绪后把 FlowSource 提供的 Markdown 文档按一级标题切分并原子注册（本地默认
+ * 扫描 classpath*:flows/*.md，可用配置覆盖或整体关闭）；绝不触发执行。
  * 自动创建引擎由容器在关闭时调用 close；核心与普通 Spring 模块不依赖本配置。
  */
 @AutoConfiguration
@@ -76,5 +82,34 @@ public class FlowEngineAutoConfiguration {
     @ConditionalOnMissingBean(FlowEngine.class)
     public DefaultFlowEngine flowEngine(NodeResolver resolver, ConditionEvaluator evaluator, EngineConfig config) {
         return new DefaultFlowEngine(resolver, evaluator, config);
+    }
+
+    /**
+     * 装配本地文件流程来源；宿主已定义 FlowSource Bean 时退让。
+     *
+     * @param properties 已完成绑定的配置属性
+     * @return 默认本地来源
+     */
+    @Bean
+    @ConditionalOnMissingBean(FlowSource.class)
+    @ConditionalOnProperty(prefix = "flow-engine.flows", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
+    public LocalMarkdownFlowSource localMarkdownFlowSource(FlowEngineProperties properties) {
+        return new LocalMarkdownFlowSource(properties.getFlows().getLocations());
+    }
+
+    /**
+     * 装配来源注册器，在全部单例就绪后执行一次注册。
+     *
+     * @param engines 引擎提供者，可为空
+     * @param sources 来源提供者，可为空
+     * @return 自动加载注册器
+     */
+    @Bean
+    @ConditionalOnProperty(prefix = "flow-engine.flows", name = "enabled", havingValue = "true",
+            matchIfMissing = true)
+    public FlowSourceRegistrar flowSourceRegistrar(ObjectProvider<FlowEngine> engines,
+            ObjectProvider<FlowSource> sources) {
+        return new FlowSourceRegistrar(engines, sources);
     }
 }
