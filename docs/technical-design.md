@@ -146,6 +146,18 @@ loadTextByApplication 表示宿主自己的读取逻辑。flowId 使用不含下
 
 注册流程需先完成语法、Bean 与流程引用解析，再在注册锁内原子发布不可变注册表快照；同 ID 冲突即报错，不替换已有定义。registerAll 支持一批文档互相引用，全部成功才发布；单文件 register 要求依赖已注册。执行读取固定快照，运行期不重读文件。
 
+### 3.4 流程文档来源与多流程 Markdown
+
+core 的 spi 包定义来源契约：`FlowDocument(sourceName, markdown)` 携带一份文档原文与来源
+标识；`FlowSource.name()` 与 `load()` 返回全部文档，实现需线程安全且可重复调用。本地文件
+实现随 Boot Starter 提供；外部数据源（如 Nacos）实现 `FlowSource` 即可接入，无需修改框架。
+
+多流程文档约定：仅 ATX 一级标题切分段落，标题文本即 flowId（小驼峰），围栏代码块内的
+`#` 行不参与切分；段落采用前缀切片输出（文件第 1 行至下一个一级标题之前），核心编译器
+报错行号与原文件一致。首个标题前的导语不得包含 mermaid 围栏块；每个段落须恰有一个顶层
+mermaid 块；既无标题也无 mermaid 块的文档视为说明文档跳过。切分层仅新增错误码
+INVALID_FLOW_HEADING，其余复用编译器既有错误码并附来源与行号。
+
 ## 4. Markdown 与 Mermaid 编译
 
 ### 4.1 Markdown 提取
@@ -541,3 +553,11 @@ SpEL 唯一匹配、正常跳过传播及原排他区域限制保留。本次没
 `FlowEngineProperties` 用 `@ConfigurationProperties` 绑定 `flow-engine.*`，资源参数默认取自 EngineConfig.defaults()，创建配置时复用 EngineConfig 校验。未知键拒绝绑定，配置只在启动时读取；自定义 EngineConfig 优先于资源属性。配置处理器生成 IDE 元数据。自动创建的 DefaultFlowEngine 通过 Bean destroyMethod=close 管理关闭；流程注册和执行保持显式 API 调用。
 
 验证覆盖：默认启动及业务调用、全部参数绑定、非法和未知参数、禁用开关、各类用户 Bean 覆盖、缺失 core 类、容器关闭、实际自动发现和元数据生成。使用 Spring Boot 官方推荐的 ApplicationContextRunner，另以 EnableAutoConfiguration 验证 imports 入口。完整示例见 [Spring Boot 接入](spring-boot.md)。
+
+自动加载：`FlowEngineAutoConfiguration` 在 `flow-engine.flows.enabled`（默认 true）时装配
+`LocalMarkdownFlowSource`（宿主已定义 `FlowSource` Bean 时退让）与 `FlowSourceRegistrar`。
+Registrar 作为 `SmartInitializingSingleton` 在全部单例就绪后执行一次：收集全部 `FlowSource`
+文档，切分汇总后单次 `registerAll` 原子注册，跨文件与跨来源子流程引用同批可用；无引擎时
+静默跳过；与手动注册的 flowId 冲突按 DUPLICATE_FLOW 启动失败。locations 默认
+`classpath*:flows/*.md`，匹配按资源 URL 排序，非 `.md` 忽略；模式零匹配静默、具体路径
+不可读则启动失败。自动加载只注册、绝不执行。

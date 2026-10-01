@@ -62,7 +62,7 @@ public class DemoApplication {
 }
 ```
 
-`FlowEngine` 可直接构造器注入。自动配置只创建基础设施，不扫描流程文件、不自动注册或触发流程。文件路径、加载时机、flowId 均由应用管理；有子流程引用时，用 `registerAll` 一次注册完整定义集。容器关闭时自动调用引擎 `close()`，无需在每次执行后关闭共享引擎。
+`FlowEngine` 可直接构造器注入。自动配置在 `flow-engine.flows.enabled`（默认 true）时自动加载流程文件：按 `flow-engine.flows.locations`（默认 `classpath*:flows/*.md`）扫描 Markdown，一个文件可用一级标题区分多个流程，标题即 flowId；全部文件汇总后经 `registerAll` 原子注册，子流程引用可跨文件。解析或注册失败将阻止应用启动，错误包含文件与行号；自动加载只注册、绝不执行。容器关闭时自动调用引擎 `close()`，无需在每次执行后关闭共享引擎。
 
 ## 3. application.yml
 
@@ -82,6 +82,9 @@ flow-engine:
   gateway-timeout: 1s
   flow-timeout: 60s
   close-timeout: 10s
+  flows:
+    enabled: true
+    locations: classpath*:flows/*.md
 ```
 
 | 配置项（前缀 `flow-engine.`） | 含义与约束 |
@@ -98,6 +101,8 @@ flow-engine:
 | `gateway-timeout` | 条件网关期限 |
 | `flow-timeout` | 流程默认期限，可用 ExecutionOptions 对单次执行覆盖 |
 | `close-timeout` | 引擎关闭等待期限 |
+| `flows.enabled` | 流程文件自动加载总开关，默认 true；false 时不扫描文件也不消费自定义 FlowSource |
+| `flows.locations` | 扫描位置列表，默认 `classpath*:flows/*.md`；支持 classpath:、classpath*:、file: 与绝对路径的 Ant 模式或具体文件 |
 
 期限必须大于 0、最多 1 天，推荐明确写单位，例如 `250ms`、`30s`；ISO-8601 Duration 也可使用。自动配置创建 EngineConfig 时复用核心校验，非法容量或期限使启动失败；未知配置键和格式错误也会失败，避免拼写错误静默生效。配置绑定只在启动时进行，不支持运行中热更新。Starter 内含 IDE 配置元数据。
 
@@ -111,6 +116,7 @@ flow-engine:
 | `NodeResolver` | 自定义业务节点解析 |
 | `ConditionEvaluator` | 自定义条件求值 |
 | `EngineConfig` | 程序化配置，优先于配置文件中对应资源参数 |
+| `FlowSource` | 自定义流程文档来源（如 Nacos）；定义后本地文件来源退让，多个来源可共存 |
 
 每种类型通常只定义一个 Bean；存在多个候选时需使用 `@Primary` 明确选择。替换条件求值器时，宿主需自行维持只读和严格 Boolean 语义。
 

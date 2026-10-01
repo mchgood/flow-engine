@@ -107,10 +107,13 @@ flowchart TD
 
 ### FR-01 文件与流程身份
 
-- 一个 `.md` 文件定义一个流程，仅允许一个 `mermaid` 围栏代码块，且该代码块必须为受支持的 flowchart。
+- 注册 API 的每次调用接受一个流程定义，仅允许一个 `mermaid` 围栏代码块，且该代码块必须为受支持的 flowchart。
 - Markdown 标题、普通段落和其他语言代码块仅作说明，不参与执行。
 - flowId 使用小驼峰 `[a-z][A-Za-z0-9]*`，不得含 `_`，同一注册范围内唯一。内容加载入口显式指定；文件适配可从符合此规则的文件名推导，否则要求显式指定。
 - 框架接受宿主应用提供的 Markdown 内容进行加载；文件读取及启动接入可提供便捷适配，不要求宿主必须在启动时加载。
+- 自动加载适配（Boot Starter）：一个 `.md` 文件可包含多个流程，以一级标题区分；一级标题文本即 flowId，须匹配上述规则且同一文件内不得重复；每个标题段落恰好包含一个 `mermaid` 围栏块，首个标题前的导语不得包含 `mermaid` 块；既无标题也无 `mermaid` 块的文件视为说明文档跳过。
+- 来源扩展点 `FlowSource` 与 `FlowDocument` 定义于 core 的 spi 包，本地文件实现随 Boot Starter 提供，外部数据源（如 Nacos）实现该接口即可接入，无需修改框架。
+- 自动加载默认开启，扫描位置 `flow-engine.flows.locations` 默认 `classpath*:flows/*.md`，可以 `flow-engine.flows.enabled=false` 整体关闭；解析或注册失败时应用启动失败，错误包含文件与行号。
 - 为加载的定义记录内容摘要作为 definitionHash，仅用于关联本次执行所使用的定义。
 - 每次执行固定引用一个已加载定义快照及其已解析子流程定义。
 

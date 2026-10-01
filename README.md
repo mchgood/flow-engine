@@ -83,6 +83,20 @@ FlowResult result = engine.execute(
 );
 ```
 
+使用 Spring Boot Starter 时也可以把流程放入 MD 文件自动注册：在 `src/main/resources/flows/`
+下创建 `.md` 文件，一个文件可用多个一级标题区分多个流程，标题即 flowId：
+
+    # orderFlow
+
+        ```mermaid
+        flowchart TD
+            start([开始]) --> check["检查库存"]
+            check --> finish([结束])
+        ```
+
+默认扫描 `classpath*:flows/*.md`，可通过 `flow-engine.flows.locations` 调整，
+`flow-engine.flows.enabled=false` 关闭自动注册。详见 [Spring Boot 集成](docs/spring-boot.md)。
+
 完整可运行代码见 `flow-engine-examples`。
 
 ## 模块

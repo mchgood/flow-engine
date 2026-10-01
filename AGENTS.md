@@ -14,7 +14,7 @@ Java 17+, Maven. Packages below are relative to `io.github.mchgood.flow`.
 | --- | --- |
 | `flow-engine-core` | Contracts: `api`, `node`, `spi`, `config`, `result`, `exception`; immutable topology: `internal.graph`; package-private mutable drafts: `internal.compiler`; execution: `runtime`. No Spring dependency. |
 | `flow-engine-spring` | Bean resolution and restricted SpEL in `spring`; no Boot dependency. |
-| `flow-engine-spring-boot-starter` | Boot 4 configuration, properties and lifecycle. Back off for user beans, close the auto-created engine, never load/execute flows automatically. |
+| `flow-engine-spring-boot-starter` | Boot 4 configuration, properties and lifecycle. Back off for user beans, close the auto-created engine, auto-register flows from `FlowSource` beans when `flow-engine.flows.enabled` (default on, `classpath*:flows/*.md`), never execute flows. |
 | `flow-engine-examples` | Executable examples and integration tests. |
 | `flow-engine-coverage` | Build-only aggregate JaCoCo report; never a runtime dependency. |
 
