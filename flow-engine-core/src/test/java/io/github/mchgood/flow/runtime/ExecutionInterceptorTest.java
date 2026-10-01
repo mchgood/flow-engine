@@ -33,8 +33,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 验证流程级与节点级拦截器的触发范围、调用顺序、线程归属与异常语义。
@@ -271,22 +271,14 @@ class ExecutionInterceptorTest {
             flowEngine.register("serial", SERIAL);
             flowEngine.execute("serial", Map.of());
             assertTrue(sequence(first.events.get(0)) < sequence(second.events.get(0)));
-            long firstBeforeFlow = sequence(first.events.stream().filter(event -> event.contains("beforeFlow"))
-                    .findFirst().orElseThrow());
-            long secondBeforeFlow = sequence(second.events.stream().filter(event -> event.contains("beforeFlow"))
-                    .findFirst().orElseThrow());
-            assertTrue(firstBeforeFlow < secondBeforeFlow);
-            long firstAfterFlow = sequence(first.events.stream().filter(event -> event.contains("afterFlow"))
-                    .findFirst().orElseThrow());
-            long secondAfterFlow = sequence(second.events.stream().filter(event -> event.contains("afterFlow"))
-                    .findFirst().orElseThrow());
-            assertTrue(firstAfterFlow < secondAfterFlow);
-            long firstBeforeNode = sequence(first.events.stream().filter(event -> event.contains("beforeNode"))
-                    .findFirst().orElseThrow());
-            long secondBeforeNode = sequence(second.events.stream().filter(event -> event.contains("beforeNode"))
-                    .findFirst().orElseThrow());
-            assertTrue(firstBeforeNode < secondBeforeNode);
+            assertTrue(seqOf(first, "beforeFlow") < seqOf(second, "beforeFlow"));
+            assertTrue(seqOf(first, "afterFlow") < seqOf(second, "afterFlow"));
+            assertTrue(seqOf(first, "beforeNode") < seqOf(second, "beforeNode"));
         }
+    }
+
+    private static long seqOf(Recorder recorder, String hook) {
+        return sequence(recorder.events.stream().filter(event -> event.contains(hook)).findFirst().orElseThrow());
     }
 
     @Test
@@ -319,8 +311,8 @@ class ExecutionInterceptorTest {
             flowEngine.register("branch", branch);
             FlowResult result = flowEngine.execute("branch", Map.of("yes", true));
             assertTrue(result.succeeded());
-            Set<String> hooked = Set.copyOf(recorder.events.stream().filter(name -> name.contains("Node:"))
-                    .map(name -> name.substring(name.indexOf(':') + 1, name.lastIndexOf('@'))).toList());
+            Set<String> hooked = Set.copyOf(recorder.events.stream().filter(name -> name.contains("Node:")).
+                    map(name -> name.substring(name.indexOf(':') + 1, name.lastIndexOf('@'))).toList());
             assertEquals(Set.of("work"), hooked);
         }
     }
