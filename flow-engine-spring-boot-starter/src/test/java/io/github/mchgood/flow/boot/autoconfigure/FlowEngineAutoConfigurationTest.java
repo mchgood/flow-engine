@@ -59,8 +59,8 @@ class FlowEngineAutoConfigurationTest {
             "flow-engine.gateway-timeout=100ms", "flow-engine.flow-timeout=5s",
             "flow-engine.close-timeout=1s").run(context -> {
                 assertThat(context).hasNotFailed();
-                assertThat(context.getBean(EngineConfig.class)).isEqualTo(new EngineConfig(2,16,4,2,3,9,2,
-                    Duration.ofMillis(250),Duration.ofMillis(100),Duration.ofSeconds(5),Duration.ofSeconds(1)));
+                assertThat(context.getBean(EngineConfig.class)).isEqualTo(new EngineConfig(2, 16, 4, 2, 3, 9, 2,
+                    Duration.ofMillis(250), Duration.ofMillis(100), Duration.ofSeconds(5), Duration.ofSeconds(1)));
             });
     }
 
@@ -120,7 +120,9 @@ class FlowEngineAutoConfigurationTest {
                 assertThat(context.getBean(FlowEngine.class)).isSameAs(engine);
                 assertThat(context).doesNotHaveBean("flowEngine");
             });
-        } finally { engine.close(); }
+        } finally {
+            engine.close();
+        }
     }
 
     @Test
@@ -145,10 +147,12 @@ class FlowEngineAutoConfigurationTest {
 
     @Test
     void publishesIdeConfigurationMetadata() throws Exception {
-        try (var stream = getClass().getClassLoader().getResourceAsStream("META-INF/spring-configuration-metadata.json")) {
+        try (var stream = getClass().getClassLoader()
+                .getResourceAsStream("META-INF/spring-configuration-metadata.json")) {
             assertThat(stream).isNotNull();
             String metadata = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
-            assertThat(metadata).contains("flow-engine.worker-threads", "flow-engine.enabled", "flow-engine.node-timeout");
+            assertThat(metadata).contains("flow-engine.worker-threads", "flow-engine.enabled",
+                    "flow-engine.node-timeout");
         }
     }
 
@@ -161,7 +165,9 @@ class FlowEngineAutoConfigurationTest {
                     assertThat(context).hasSingleBean(FlowEngine.class).doesNotHaveBean(NodeResolver.class);
                     assertThat(context.getBean(FlowEngine.class)).isSameAs(engine);
                 });
-        } finally { engine.close(); }
+        } finally {
+            engine.close();
+        }
     }
 
     @Test
@@ -180,7 +186,8 @@ class FlowEngineAutoConfigurationTest {
     @Test
     void primaryResolverIsUsedWhenMultipleCandidatesExist() {
         runner.withBean("first", NodeResolver.class, () -> name -> node -> 1)
-            .withBean("preferred", NodeResolver.class, () -> name -> node -> 2, definition -> definition.setPrimary(true))
+            .withBean("preferred", NodeResolver.class, () -> name -> node -> 2,
+                definition -> definition.setPrimary(true))
             .run(context -> {
                 var engine = context.getBean(FlowEngine.class);
                 engine.register("primary", FLOW);

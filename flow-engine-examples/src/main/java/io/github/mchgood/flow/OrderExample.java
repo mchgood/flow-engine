@@ -3,13 +3,14 @@ package io.github.mchgood.flow;
 import io.github.mchgood.flow.api.FlowEngine;
 import io.github.mchgood.flow.node.FlowNode;
 import io.github.mchgood.flow.result.FlowResult;
-
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 import io.github.mchgood.flow.spring.SpringNodeResolver;
-import org.springframework.context.annotation.*;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import java.util.*;
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import java.util.Map;
 
 /**
  * 普通 Spring 的可执行订单示例，展示条件、并行、别名复用和显式子流程。
@@ -29,35 +30,44 @@ public final class OrderExample {
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode<Map<String, Object>> validateOrder(){return ctx->Map.of("valid",true,"call",ctx.nodeId());}
+        @Bean
+        public FlowNode<Map<String, Object>> validateOrder() {
+            return ctx -> Map.of("valid", true, "call", ctx.nodeId());
+        }
 
         /**
          * 返回演示库存预占结果。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode<Map<String, Boolean>> reserveStock(){return ctx->Map.of("reserved",true);}
+        @Bean
+        public FlowNode<Map<String, Boolean>> reserveStock() { return ctx -> Map.of("reserved", true); }
 
         /**
          * 从输入读取 amount 并返回金额。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode<Map<String, Object>> calculatePrice(){return ctx->Map.of("total",ctx.input(Map.class).get("amount"));}
+        @Bean
+        public FlowNode<Map<String, Object>> calculatePrice() {
+            return ctx -> Map.of("total", ctx.input(Map.class).get("amount"));
+        }
 
         /**
          * 返回需要人工复核的演示标记，不等待人工操作。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode<String> recordReview(){return ctx->"needs manual review";}
+        @Bean
+        public FlowNode<String> recordReview() { return ctx -> "needs manual review"; }
 
         /**
          * 返回演示保存结果。
          *
          * @return 无执行状态成员的示例任务
          */
-        @Bean public FlowNode<Map<String, Boolean>> saveOrder(){return ctx->Map.of("saved",true);}
+        @Bean
+        public FlowNode<Map<String, Boolean>> saveOrder() { return ctx -> Map.of("saved", true); }
 
         /**
          * 演示非 Boot 应用如何装配并管理引擎关闭。
@@ -65,8 +75,9 @@ public final class OrderExample {
          * @param beans 宿主容器
          * @return 标准引擎
          */
-        @Bean(destroyMethod="close") public FlowEngine flowEngine(ConfigurableListableBeanFactory beans){
-            return new DefaultFlowEngine(new SpringNodeResolver(beans),new SpelConditionEvaluator());
+        @Bean(destroyMethod = "close")
+        public FlowEngine flowEngine(ConfigurableListableBeanFactory beans) {
+            return new DefaultFlowEngine(new SpringNodeResolver(beans), new SpelConditionEvaluator());
         }
     }
 
@@ -75,11 +86,11 @@ public final class OrderExample {
      *
      * @return 本次订单流程结果；返回前容器已经关闭
      */
-    public static FlowResult run(){
-        try(var spring=new AnnotationConfigApplicationContext(Application.class)){
-            var engine=spring.getBean(FlowEngine.class);
-            engine.registerAll(Map.of("orderFlow",ORDER,"fulfillment",FULFILLMENT));
-            return engine.execute("orderFlow",Map.of("amount",800));
+    public static FlowResult run() {
+        try (var spring = new AnnotationConfigApplicationContext(Application.class)) {
+            var engine = spring.getBean(FlowEngine.class);
+            engine.registerAll(Map.of("orderFlow", ORDER, "fulfillment", FULFILLMENT));
+            return engine.execute("orderFlow", Map.of("amount", 800));
         }
     }
 
@@ -88,12 +99,16 @@ public final class OrderExample {
      *
      * @param args 命令行参数，本示例不使用
      */
-    public static void main(String[] args){var result=run();System.out.println("status="+result.status()+", execution="+result.executionId());result.results().forEach((id,n)->System.out.println(id+": "+n.status()));}
+    public static void main(String[] args) {
+        var result = run();
+        System.out.println("status=" + result.status() + ", execution=" + result.executionId());
+        result.results().forEach((id, nodeRecord) -> System.out.println(id + ": " + nodeRecord.status()));
+    }
 
     /**
      * 订单父流程：按金额选择履约子流程或复核记录，前后两次复用校验 Bean。
      */
-    public static final String ORDER="""
+    public static final String ORDER = """
         # Order
         ```mermaid
         flowchart TD
@@ -111,7 +126,7 @@ public final class OrderExample {
     /**
      * 履约子流程：并行库存与计价，汇合后保存订单。
      */
-    public static final String FULFILLMENT="""
+    public static final String FULFILLMENT = """
         # Fulfillment
         ```mermaid
         flowchart TD
