@@ -2,6 +2,7 @@ package io.github.mchgood.flow;
 
 import io.github.mchgood.flow.api.FlowEngine;
 import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.result.FlowResult;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
@@ -22,59 +24,64 @@ import java.util.Map;
 public final class OrderExample {
 
     /**
-     * 演示用 Spring 配置，节点名称与 Mermaid ID 的目标部分一致。
+     * 演示用 Spring 配置，节点组件名称与 Mermaid ID 的目标部分一致。
      */
     @Configuration
     public static class Application {
 
         /**
          * 返回校验结果及当前别名节点 ID。
-         *
-         * @return 无执行状态成员的示例任务
          */
-        @Bean
-        public FlowNode<Map<String, Object>> validateOrder() {
-            return ctx -> Map.of("valid", true, "call", ctx.nodeId());
+        @Component("validateOrder")
+        static class ValidateOrderNode implements FlowNode<Map<String, Object>> {
+            @Override
+            public Map<String, Object> execute(NodeContext context) {
+                return Map.of("valid", true, "call", context.nodeId());
+            }
         }
 
         /**
          * 返回演示库存预占结果。
-         *
-         * @return 无执行状态成员的示例任务
          */
-        @Bean
-        public FlowNode<Map<String, Boolean>> reserveStock() {
-            return ctx -> Map.of("reserved", true);
+        @Component("reserveStock")
+        static class ReserveStockNode implements FlowNode<Map<String, Boolean>> {
+            @Override
+            public Map<String, Boolean> execute(NodeContext context) {
+                return Map.of("reserved", true);
+            }
         }
 
         /**
          * 从输入读取 amount 并返回金额。
-         *
-         * @return 无执行状态成员的示例任务
          */
-        @Bean
-        public FlowNode<Map<String, Object>> calculatePrice() {
-            return ctx -> Map.of("total", ctx.input(Map.class).get("amount"));
+        @Component("calculatePrice")
+        static class CalculatePriceNode implements FlowNode<Map<String, Object>> {
+            @Override
+            public Map<String, Object> execute(NodeContext context) {
+                return Map.of("total", context.input(Map.class).get("amount"));
+            }
         }
 
         /**
          * 返回需要人工复核的演示标记，不等待人工操作。
-         *
-         * @return 无执行状态成员的示例任务
          */
-        @Bean
-        public FlowNode<String> recordReview() {
-            return ctx -> "needs manual review";
+        @Component("recordReview")
+        static class RecordReviewNode implements FlowNode<String> {
+            @Override
+            public String execute(NodeContext context) {
+                return "needs manual review";
+            }
         }
 
         /**
          * 返回演示保存结果。
-         *
-         * @return 无执行状态成员的示例任务
          */
-        @Bean
-        public FlowNode<Map<String, Boolean>> saveOrder() {
-            return ctx -> Map.of("saved", true);
+        @Component("saveOrder")
+        static class SaveOrderNode implements FlowNode<Map<String, Boolean>> {
+            @Override
+            public Map<String, Boolean> execute(NodeContext context) {
+                return Map.of("saved", true);
+            }
         }
 
         /**
