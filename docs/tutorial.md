@@ -43,7 +43,7 @@ mvn install
 </dependency>
 ```
 
-**第一步：定义业务节点。** 每个矩形节点对应一个实现 `FlowNode` 的 singleton Bean，Bean 名称就是节点 ID。节点用 `@Component` 类定义：类名首字母小写即节点 ID（`ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致；不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。下面一个用默认命名，一个用显式命名：
+**第一步：定义业务节点。** 每个矩形节点对应一个实现 `FlowNode` 的 singleton Bean，Bean 名称就是节点 ID。节点用 `@Component` 类定义：类名首字母小写即节点 ID（`ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致；不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。默认名的完整派生规则见第 4 章（`SMSSend` 这类连续大写开头的类名不会被自动转换）。下面一个用默认命名，一个用显式命名：
 
 ```java
 package example;
@@ -200,7 +200,7 @@ flow-engine:
 
 其他形状（圆角、stadium、子图、循环等）不支持，注册期会以错误码失败。
 
-**flowId 与 `_` 别名规则。** 节点的 Bean 名默认是 `@Component` 类名首字母小写（如 `ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致，不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。节点 ID 默认等于 Bean ID；当第一个 `_` 之后有非空后缀时，该后缀是别名，实际调用 `_` 前面的 Bean ID。例如 `validateOrder_before` 与 `validateOrder_after` 都调用 `validateOrder` Bean。完整节点 ID（含别名）在本次执行中唯一标识这次调用：状态、结果、超时都按完整 ID 隔离，所以两次调用互不干扰。
+**flowId 与 `_` 别名规则。** 节点的 Bean 名默认是 `@Component` 类名首字母小写（如 `ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致，不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。（Spring 默认名按 `Introspector.decapitalize` 派生：仅当第二个字母非大写时才小写首字母，如 `ValidateOrder` → `validateOrder`；`SMSSend` 这类连续大写开头的类名不会被转换——不确定时就显式 `@Component("节点ID")`。）节点 ID 默认等于 Bean ID；当第一个 `_` 之后有非空后缀时，该后缀是别名，实际调用 `_` 前面的 Bean ID。例如 `validateOrder_before` 与 `validateOrder_after` 都调用 `validateOrder` Bean。完整节点 ID（含别名）在本次执行中唯一标识这次调用：状态、结果、超时都按完整 ID 隔离，所以两次调用互不干扰。
 
 **条件网关。** 普通菱形一入多出，每条出边用 `|"条件"|` 写受限 SpEL 表达式，引擎求值后恰好选择一条出边：
 

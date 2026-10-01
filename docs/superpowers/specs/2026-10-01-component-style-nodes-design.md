@@ -25,8 +25,8 @@
 ### 文档(4)
 
 - `README.md`:validateOrder 示例改 @Component 类;新增 Bean 名命名规则一句。
-- `docs/quick-start.md`:5 个节点 @Bean(validateOrder/reserveStock/calculatePrice/recordReview/
-  saveOrder)→ 5 个 @Component 类;`FlowEngine` 手动装配 @Bean 保留;33 行附近的说明补命名规则。
+- `docs/quick-start.md`:5 个节点 @Bean(validateOrder、autoProcess、manualReview(FlowConfiguration)
+  与第 9 章 saveOrder、泛型小节 validateOrder)→ 5 个 @Component 类;`FlowEngine` 手动装配 @Bean 保留;33 行附近的说明补命名规则。
 - `docs/spring-boot.md`:DemoApplication 的 greet 节点 → @Component 类。
 - `docs/tutorial.md`:第 2 章节点示例 → @Component 类;第 2/4 章补命名规则与 @Bean 兼容说明;
   第 7 章自定义 NodeResolver 一节的表述与 @Component 默认路径保持一致。

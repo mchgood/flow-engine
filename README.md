@@ -46,7 +46,7 @@ public class ValidateOrder implements FlowNode<Map<String, Object>> {
 }
 ```
 
-类名首字母小写即节点 ID（`ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致；不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。
+类名首字母小写即节点 ID（`ValidateOrder` → `validateOrder`），必须与图中节点 ID 一致；不一致时用 `@Component("节点ID")` 显式命名；lambda 或动态注册仍可用 `@Bean` 方法（框架只按名称查找）。（Spring 按 `Introspector.decapitalize` 派生默认名，连续大写开头的类名不会被转换；不确定就显式命名。）
 
 完整启动示例、`flow-engine.*` 配置和覆盖规则见 [Spring Boot 接入](docs/spring-boot.md)。普通 Spring 项目仍可使用 `flow-engine-spring` 手动装配。
 
