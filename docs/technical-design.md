@@ -64,7 +64,7 @@ flowchart TD
 
 ### 2.2 flow-engine-spring
 
-提供 SpringNodeResolver 和显式 Java 配置入口。宿主定义 FlowEngine Bean，在需要时注册流程并调用。同时提供独立 Spring Boot Starter 自动装配入口；不自动扫描流程目录或启动时强制加载。
+提供 SpringNodeResolver 和显式 Java 配置入口。宿主定义 FlowEngine Bean，在需要时注册流程并调用。同时提供独立 Spring Boot Starter 自动装配入口；在 `flow-engine.flows.enabled`（默认 true）时从 `FlowSource` Bean 自动注册流程文档，locations 默认 `classpath*:flows/*.md` 且可配置；自动加载只注册、绝不执行流程。
 
 仅 TASK 使用业务 Spring Bean；所有网关及起止节点由引擎执行。spring 模块提供 SpelConditionEvaluator，并依赖与宿主 Spring 版本对齐的 spring-expression。core 只依赖 ConditionEvaluator SPI，不直接引用 SpEL 类型。Spring 适配使用容器按名称查找 Bean，并保留返回实例；是否可保留共享实例应结合 Bean 作用域判断。首期约定节点为 singleton，拒绝 prototype 和依赖请求作用域的节点。这是新增的接入限制，需纳入接口文档。[Spring BeanFactory](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/beans/factory/BeanFactory.html)、[Bean 作用域](https://docs.spring.io/spring-framework/reference/core/beans/factory-scopes.html)
 
