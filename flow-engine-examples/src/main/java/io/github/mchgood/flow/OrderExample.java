@@ -6,10 +6,12 @@ import io.github.mchgood.flow.result.FlowResult;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 import io.github.mchgood.flow.spring.SpringNodeResolver;
+
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import java.util.Map;
 
 /**
@@ -41,7 +43,9 @@ public final class OrderExample {
          * @return 无执行状态成员的示例任务
          */
         @Bean
-        public FlowNode<Map<String, Boolean>> reserveStock() { return ctx -> Map.of("reserved", true); }
+        public FlowNode<Map<String, Boolean>> reserveStock() {
+            return ctx -> Map.of("reserved", true);
+        }
 
         /**
          * 从输入读取 amount 并返回金额。
@@ -59,7 +63,9 @@ public final class OrderExample {
          * @return 无执行状态成员的示例任务
          */
         @Bean
-        public FlowNode<String> recordReview() { return ctx -> "needs manual review"; }
+        public FlowNode<String> recordReview() {
+            return ctx -> "needs manual review";
+        }
 
         /**
          * 返回演示保存结果。
@@ -67,7 +73,9 @@ public final class OrderExample {
          * @return 无执行状态成员的示例任务
          */
         @Bean
-        public FlowNode<Map<String, Boolean>> saveOrder() { return ctx -> Map.of("saved", true); }
+        public FlowNode<Map<String, Boolean>> saveOrder() {
+            return ctx -> Map.of("saved", true);
+        }
 
         /**
          * 演示非 Boot 应用如何装配并管理引擎关闭。

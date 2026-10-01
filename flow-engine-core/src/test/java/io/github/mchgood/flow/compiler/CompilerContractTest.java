@@ -2,21 +2,23 @@ package io.github.mchgood.flow.compiler;
 
 import io.github.mchgood.flow.exception.FlowException;
 import io.github.mchgood.flow.internal.compiler.FlowCompiler;
-import io.github.mchgood.flow.internal.graph.Definition;
 import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.spi.CompiledCondition;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
 import io.github.mchgood.flow.spi.SourceLocation;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -26,12 +28,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class CompilerContractTest {
     private static final ConditionEvaluator CONDITIONS = new ConditionEvaluator() {
         @Override
-        public CompiledCondition parse(String text, SourceLocation location) { return new CompiledCondition() {}; }
+        public CompiledCondition parse(String text, SourceLocation location) {
+            return new CompiledCondition() {};
+        }
         public boolean evaluate(CompiledCondition condition,
-                NodeContext context) { throw new AssertionError("Registration must not evaluate"); }
+                NodeContext context) {
+            throw new AssertionError("Registration must not evaluate");
+        }
     };
     private final FlowCompiler compiler = new FlowCompiler(id -> context -> null, CONDITIONS);
-    private static String md(String body) { return "```mermaid\nflowchart TD\n" + body + "\n```"; }
+    private static String md(String body) {
+        return "```mermaid\nflowchart TD\n" + body + "\n```";
+    }
     private static final String SERIAL = "start([开始]) --> work --> finish([结束])";
 
     static Stream<Arguments> malformed() {

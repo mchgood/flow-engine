@@ -1,6 +1,5 @@
 package io.github.mchgood.flow.runtime;
 
-import io.github.mchgood.flow.api.ExecutionOptions;
 import io.github.mchgood.flow.config.EngineConfig;
 import io.github.mchgood.flow.exception.FlowException;
 import io.github.mchgood.flow.node.FlowNode;
@@ -10,10 +9,12 @@ import io.github.mchgood.flow.result.NodeStatus;
 import io.github.mchgood.flow.spi.CompiledCondition;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
 import io.github.mchgood.flow.spi.SourceLocation;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
@@ -25,6 +26,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -35,12 +37,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RuntimeBoundaryTest {
     private record Condition(String text) implements CompiledCondition {}
     private static final ConditionEvaluator CONDITIONS = new ConditionEvaluator() {
-        public CompiledCondition parse(String text, SourceLocation location) { return new Condition(text); }
+        public CompiledCondition parse(String text, SourceLocation location) {
+            return new Condition(text);
+        }
         public boolean evaluate(CompiledCondition expression, NodeContext context) {
             return Boolean.TRUE.equals(context.input(Map.class).get(((Condition) expression).text()));
         }
     };
-    private static String md(String body) { return "```mermaid\nflowchart TD\n" + body + "\n```"; }
+    private static String md(String body) {
+        return "```mermaid\nflowchart TD\n" + body + "\n```";
+    }
     private static final String SERIAL = md("start([s]) --> work --> finish([f])");
     private static final String CHILD = md("start([s]) --> child_one[[\"child\"]] --> child_two[[\"child\"]]"
             + " --> finish([f])");
@@ -277,7 +283,9 @@ class RuntimeBoundaryTest {
     void gatewayTimeoutDoesNotStartAnyBranchAndEngineRecovers() {
         ConditionEvaluator slow = new ConditionEvaluator() {
             @Override
-            public CompiledCondition parse(String text, SourceLocation location) { return new Condition(text); }
+            public CompiledCondition parse(String text, SourceLocation location) {
+                return new Condition(text);
+            }
             @Override
             public boolean evaluate(CompiledCondition condition, NodeContext context) {
                 try {

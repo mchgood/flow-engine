@@ -2,6 +2,7 @@ package io.github.mchgood.flow.spring;
 
 import io.github.mchgood.flow.exception.FlowException;
 import io.github.mchgood.flow.node.FlowNode;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
 import org.springframework.context.support.GenericApplicationContext;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -54,6 +56,8 @@ class SpringResolverContractTest {
     static class PrototypeProxy {
         @Bean
         @Scope(value = "prototype", proxyMode = ScopedProxyMode.INTERFACES)
-        FlowNode<?> work() { return context -> 1; }
+        FlowNode<?> work() {
+            return context -> 1;
+        }
     }
 }

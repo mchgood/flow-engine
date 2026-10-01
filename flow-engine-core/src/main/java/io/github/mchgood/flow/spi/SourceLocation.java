@@ -16,5 +16,7 @@ public record SourceLocation(String source, int line, int column) {
      * @return source:line:column 格式的位置
      */
     @Override
-    public String toString() { return source + ":" + line + ":" + column; }
+    public String toString() {
+        return source + ":" + line + ":" + column;
+    }
 }

@@ -3,13 +3,16 @@ package io.github.mchgood.flow.spring;
 import io.github.mchgood.flow.node.FlowNode;
 import io.github.mchgood.flow.result.NodeStatus;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
+
 import org.aopalliance.intercept.MethodInterceptor;
 import org.junit.jupiter.api.Test;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -25,7 +28,9 @@ class GenericNodeIntegrationTest {
     @Configuration(proxyBeanMethods = false)
     static class Nodes {
         @Bean
-        FlowNode<ValidationResult> validate() { return context -> new ValidationResult(true); }
+        FlowNode<ValidationResult> validate() {
+            return context -> new ValidationResult(true);
+        }
 
         @Bean
         FlowNode<String> describe() {
@@ -34,10 +39,14 @@ class GenericNodeIntegrationTest {
         }
 
         @Bean
-        FlowNode<Void> complete() { return context -> null; }
+        FlowNode<Void> complete() {
+            return context -> null;
+        }
 
         @Bean
-        FlowNode<Integer> wrongType() { return context -> context.ancestorValue("validate", Integer.class); }
+        FlowNode<Integer> wrongType() {
+            return context -> context.ancestorValue("validate", Integer.class);
+        }
     }
 
     private static String graph(String tasks) {

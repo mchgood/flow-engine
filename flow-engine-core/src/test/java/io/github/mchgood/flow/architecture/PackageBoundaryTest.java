@@ -5,11 +5,14 @@ import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.spi.CompiledCondition;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
 import io.github.mchgood.flow.spi.SourceLocation;
+
 import org.junit.jupiter.api.Test;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import java.util.regex.Pattern;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -47,9 +50,13 @@ class PackageBoundaryTest {
     void compilerPublishesReadOnlyTopologyWithConsistentEdges() {
         ConditionEvaluator unused = new ConditionEvaluator() {
             @Override
-            public CompiledCondition parse(String text, SourceLocation location) { throw new AssertionError(); }
+            public CompiledCondition parse(String text, SourceLocation location) {
+                throw new AssertionError();
+            }
             @Override
-            public boolean evaluate(CompiledCondition condition, NodeContext context) { throw new AssertionError(); }
+            public boolean evaluate(CompiledCondition condition, NodeContext context) {
+                throw new AssertionError();
+            }
         };
         var graph = new FlowCompiler(id -> context -> null, unused).compile("sample", """
             ```mermaid

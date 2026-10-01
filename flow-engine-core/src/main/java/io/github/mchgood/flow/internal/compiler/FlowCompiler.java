@@ -410,9 +410,13 @@ public final class FlowCompiler {
             }
         }
 
-        boolean end() { return position >= line.length(); }
+        boolean end() {
+            return position >= line.length();
+        }
 
-        String rest() { return line.substring(position); }
+        String rest() {
+            return line.substring(position);
+        }
 
         boolean take(String text) {
             if (line.startsWith(text, position)) {

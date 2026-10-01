@@ -1,7 +1,9 @@
 package io.github.mchgood.flow.boot.autoconfigure;
 
 import io.github.mchgood.flow.config.EngineConfig;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
+
 import java.time.Duration;
 
 /**

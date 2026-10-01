@@ -8,6 +8,7 @@ import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
 import io.github.mchgood.flow.spi.NodeResolver;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -16,9 +17,11 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -26,8 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * 验证 Starter 默认装配、参数校验、用户覆盖、发现入口及关闭语义。
  */
 class FlowEngineAutoConfigurationTest {
-    private final ApplicationContextRunner runner = new ApplicationContextRunner()
-        .withConfiguration(AutoConfigurations.of(FlowEngineAutoConfiguration.class));
+    private final ApplicationContextRunner runner = new ApplicationContextRunner().
+        withConfiguration(AutoConfigurations.of(FlowEngineAutoConfiguration.class));
     private static final String FLOW = """
         ```mermaid
         flowchart TD
@@ -39,8 +42,8 @@ class FlowEngineAutoConfigurationTest {
     @Test
     void defaultBeansExecuteAnApplicationNode() {
         runner.withBean("echo", FlowNode.class, () -> context -> context.input()).run(context -> {
-            assertThat(context).hasSingleBean(FlowEngine.class).hasSingleBean(NodeResolver.class)
-                .hasSingleBean(ConditionEvaluator.class).hasSingleBean(EngineConfig.class);
+            assertThat(context).hasSingleBean(FlowEngine.class).hasSingleBean(NodeResolver.class).
+                hasSingleBean(ConditionEvaluator.class).hasSingleBean(EngineConfig.class);
             assertThat(context.getBean(EngineConfig.class)).isEqualTo(EngineConfig.defaults());
             FlowEngine engine = context.getBean(FlowEngine.class);
             engine.register("echoFlow", FLOW);
@@ -61,6 +64,19 @@ class FlowEngineAutoConfigurationTest {
                 assertThat(context).hasNotFailed();
                 assertThat(context.getBean(EngineConfig.class)).isEqualTo(new EngineConfig(2, 16, 4, 2, 3, 9, 2,
                     Duration.ofMillis(250), Duration.ofMillis(100), Duration.ofSeconds(5), Duration.ofSeconds(1)));
+                var properties = context.getBean(FlowEngineProperties.class);
+                assertThat(properties.isEnabled()).isTrue();
+                assertThat(properties.getWorkerThreads()).isEqualTo(2);
+                assertThat(properties.getQueueCapacity()).isEqualTo(16);
+                assertThat(properties.getMaxConcurrentExecutions()).isEqualTo(4);
+                assertThat(properties.getMaxInFlightPerExecution()).isEqualTo(2);
+                assertThat(properties.getMaxSubflowDepth()).isEqualTo(3);
+                assertThat(properties.getMaxExecutionsPerRoot()).isEqualTo(9);
+                assertThat(properties.getMaxActiveChildren()).isEqualTo(2);
+                assertThat(properties.getNodeTimeout()).isEqualTo(Duration.ofMillis(250));
+                assertThat(properties.getGatewayTimeout()).isEqualTo(Duration.ofMillis(100));
+                assertThat(properties.getFlowTimeout()).isEqualTo(Duration.ofSeconds(5));
+                assertThat(properties.getCloseTimeout()).isEqualTo(Duration.ofSeconds(1));
             });
     }
 
@@ -74,8 +90,8 @@ class FlowEngineAutoConfigurationTest {
     @Test
     void disabledDoesNotCreateInfrastructure() {
         runner.withPropertyValues("flow-engine.enabled=false").run(context -> {
-            assertThat(context).doesNotHaveBean(FlowEngine.class).doesNotHaveBean(NodeResolver.class)
-                .doesNotHaveBean(ConditionEvaluator.class).doesNotHaveBean(EngineConfig.class);
+            assertThat(context).doesNotHaveBean(FlowEngine.class).doesNotHaveBean(NodeResolver.class).
+                doesNotHaveBean(ConditionEvaluator.class).doesNotHaveBean(EngineConfig.class);
         });
     }
 
@@ -104,8 +120,8 @@ class FlowEngineAutoConfigurationTest {
     @Test
     void customEngineConfigTakesPrecedence() {
         var config = EngineConfig.defaults();
-        runner.withBean(EngineConfig.class, () -> config).withPropertyValues("flow-engine.worker-threads=2")
-            .run(context -> {
+        runner.withBean(EngineConfig.class, () -> config).withPropertyValues("flow-engine.worker-threads=2").
+            run(context -> {
                 assertThat(context).hasSingleBean(EngineConfig.class);
                 assertThat(context.getBean(EngineConfig.class)).isSameAs(config);
             });
@@ -135,20 +151,20 @@ class FlowEngineAutoConfigurationTest {
 
     @Test
     void missingCoreClassesBackOff() {
-        runner.withClassLoader(new FilteredClassLoader(FlowEngine.class))
-            .run(context -> assertThat(context).doesNotHaveBean(FlowEngineAutoConfiguration.class));
+        runner.withClassLoader(new FilteredClassLoader(FlowEngine.class)).
+            run(context -> assertThat(context).doesNotHaveBean(FlowEngineAutoConfiguration.class));
     }
 
     @Test
     void bootDiscoversConfigurationWithoutAnExplicitImport() {
-        new ApplicationContextRunner().withUserConfiguration(BootHost.class)
-            .run(context -> assertThat(context).hasSingleBean(FlowEngine.class));
+        new ApplicationContextRunner().withUserConfiguration(BootHost.class).
+            run(context -> assertThat(context).hasSingleBean(FlowEngine.class));
     }
 
     @Test
     void publishesIdeConfigurationMetadata() throws Exception {
-        try (var stream = getClass().getClassLoader()
-                .getResourceAsStream("META-INF/spring-configuration-metadata.json")) {
+        try (var stream = getClass().getClassLoader().
+                getResourceAsStream("META-INF/spring-configuration-metadata.json")) {
             assertThat(stream).isNotNull();
             String metadata = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             assertThat(metadata).contains("flow-engine.worker-threads", "flow-engine.enabled",
@@ -160,8 +176,8 @@ class FlowEngineAutoConfigurationTest {
     void disabledAutoConfigurationPreservesUserEngine() {
         var engine = new DefaultFlowEngine(id -> node -> null, new SpelConditionEvaluator());
         try {
-            runner.withPropertyValues("flow-engine.enabled=false")
-                .withBean("custom", FlowEngine.class, () -> engine).run(context -> {
+            runner.withPropertyValues("flow-engine.enabled=false").
+                withBean("custom", FlowEngine.class, () -> engine).run(context -> {
                     assertThat(context).hasSingleBean(FlowEngine.class).doesNotHaveBean(NodeResolver.class);
                     assertThat(context.getBean(FlowEngine.class)).isSameAs(engine);
                 });
@@ -172,23 +188,23 @@ class FlowEngineAutoConfigurationTest {
 
     @Test
     void missingSpelAdapterPreventsAutoConfiguration() {
-        runner.withClassLoader(new FilteredClassLoader(SpelConditionEvaluator.class))
-            .run(context -> assertThat(context).doesNotHaveBean(FlowEngineAutoConfiguration.class));
+        runner.withClassLoader(new FilteredClassLoader(SpelConditionEvaluator.class)).
+            run(context -> assertThat(context).doesNotHaveBean(FlowEngineAutoConfiguration.class));
     }
 
     @Test
     void ambiguousResolversFailInsteadOfChoosingArbitrarily() {
-        runner.withBean("first", NodeResolver.class, () -> name -> node -> 1)
-            .withBean("second", NodeResolver.class, () -> name -> node -> 2)
-            .run(context -> assertThat(context).hasFailed());
+        runner.withBean("first", NodeResolver.class, () -> name -> node -> 1).
+            withBean("second", NodeResolver.class, () -> name -> node -> 2).
+            run(context -> assertThat(context).hasFailed());
     }
 
     @Test
     void primaryResolverIsUsedWhenMultipleCandidatesExist() {
-        runner.withBean("first", NodeResolver.class, () -> name -> node -> 1)
-            .withBean("preferred", NodeResolver.class, () -> name -> node -> 2,
-                definition -> definition.setPrimary(true))
-            .run(context -> {
+        runner.withBean("first", NodeResolver.class, () -> name -> node -> 1).
+            withBean("preferred", NodeResolver.class, () -> name -> node -> 2,
+                definition -> definition.setPrimary(true)).
+            run(context -> {
                 var engine = context.getBean(FlowEngine.class);
                 engine.register("primary", FLOW);
                 assertThat(engine.execute("primary", null).results().get("echo").value()).isEqualTo(2);

@@ -27,7 +27,9 @@ public record ExecutionOptions(Duration timeout) {
      *
      * @return timeout 为 null 的执行选项
      */
-    public static ExecutionOptions defaults() { return new ExecutionOptions(null); }
+    public static ExecutionOptions defaults() {
+        return new ExecutionOptions(null);
+    }
 
     /**
      * 指定本次根流程期限。
@@ -36,5 +38,7 @@ public record ExecutionOptions(Duration timeout) {
      * @return 新的执行选项
      * @throws IllegalArgumentException 非 null 期限越界
      */
-    public static ExecutionOptions withTimeout(Duration timeout) { return new ExecutionOptions(timeout); }
+    public static ExecutionOptions withTimeout(Duration timeout) {
+        return new ExecutionOptions(timeout);
+    }
 }

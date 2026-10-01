@@ -5,15 +5,18 @@ import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.result.NodeRecord;
 import io.github.mchgood.flow.result.NodeStatus;
 import io.github.mchgood.flow.spi.SourceLocation;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -24,33 +27,35 @@ class SpelContractTest {
     private final SpelConditionEvaluator evaluator = new SpelConditionEvaluator();
     private final SourceLocation location = new SourceLocation("flow", 4, 5);
 
-    private NodeContext context(Object input) { return new NodeContext("e", "f", "gate", input, Map.of()); }
+    private NodeContext context(Object input) {
+        return new NodeContext("e", "f", "gate", input, Map.of());
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "#input.amount == 10",
-            "#input['amount'] >= 10 and #input.amount < 11",
-            "#input.amount + 2 == 12",
-            "#input.amount % 3 == 1",
-            "!(#input.amount < 0)",
-            "#input.amount == 10 ? true : false",
-            "(#input['absent'] ?: 7) == 7",
-            "#input.amount / 2 == 5"})
+        "#input.amount == 10",
+        "#input['amount'] >= 10 and #input.amount < 11",
+        "#input.amount + 2 == 12",
+        "#input.amount % 3 == 1",
+        "!(#input.amount < 0)",
+        "#input.amount == 10 ? true : false",
+        "(#input['absent'] ?: 7) == 7",
+        "#input.amount / 2 == 5"})
     void allowedExpressionsRemainUsable(String source) {
         assertTrue(evaluator.evaluate(evaluator.parse(source, location), context(Map.of("amount", 10))));
     }
 
     @ParameterizedTest
     @ValueSource(strings = {
-            "#input.remove('amount')",
-            "#input.amount--",
-            "#input.amount = 2",
-            "#input.classLoader",
-            "#input.declaringClass",
-            "#this",
-            "#input.?[true]",
-            "#input.![true]",
-            "#results['a' + 'b'].present"})
+        "#input.remove('amount')",
+        "#input.amount--",
+        "#input.amount = 2",
+        "#input.classLoader",
+        "#input.declaringClass",
+        "#this",
+        "#input.?[true]",
+        "#input.![true]",
+        "#results['a' + 'b'].present"})
     void rejectedOperationsHaveStableErrorCode(String source) {
         assertEquals("EXPRESSION_FORBIDDEN", assertThrows(FlowException.class,
                 () -> evaluator.parse(source, location)).code());

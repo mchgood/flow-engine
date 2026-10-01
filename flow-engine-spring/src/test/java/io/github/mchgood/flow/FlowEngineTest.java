@@ -11,6 +11,7 @@ import io.github.mchgood.flow.result.NodeStatus;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 import io.github.mchgood.flow.spring.SpringNodeResolver;
+
 import org.aopalliance.intercept.MethodInterceptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -18,6 +19,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.context.support.GenericApplicationContext;
+
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -43,14 +46,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @Timeout(8)
 class FlowEngineTest {
-    static String md(String body) { return "# Flow\n\n```mermaid\nflowchart TD\n" + body + "\n```\n"; }
+    static String md(String body) {
+        return "# Flow\n\n```mermaid\nflowchart TD\n" + body + "\n```\n";
+    }
 
     static EngineConfig config(int threads, int inFlight, Duration nodeTimeout, Duration flowTimeout) {
         return new EngineConfig(threads, 16, 8, inFlight, 8, 64, 16, nodeTimeout, nodeTimeout, flowTimeout,
                 Duration.ofMillis(20));
     }
 
-    static DefaultFlowEngine engine(Map<String, FlowNode<?>> beans) { return engine(beans, 4, 8); }
+    static DefaultFlowEngine engine(Map<String, FlowNode<?>> beans) {
+        return engine(beans, 4, 8);
+    }
 
     static DefaultFlowEngine engine(Map<String, FlowNode<?>> beans, int threads, int inFlight) {
         return new DefaultFlowEngine(id -> {
@@ -152,8 +159,8 @@ class FlowEngineTest {
     void conditionsReadCompletedAncestor() {
         try (var flowEngine = engine(Map.of("check", context -> Map.of("passed", true),
                 "yes", context -> 1, "no", context -> 2))) {
-            String graph = conditional("#results['check'].present and #results['check'].value.passed", "default")
-                    .replace("start([开始]) --> gate", "start([开始]) --> check[\"check\"] --> gate");
+            String graph = conditional("#results['check'].present and #results['check'].value.passed", "default").
+                    replace("start([开始]) --> gate", "start([开始]) --> check[\"check\"] --> gate");
             flowEngine.register("choice", graph);
             var result = flowEngine.execute("choice", null);
             assertTrue(result.succeeded(), result.errors().toString());
@@ -201,8 +208,8 @@ class FlowEngineTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"T(java.lang.System).exit(0)", "@service.call()", "new java.lang.String('x')",
-            "#input.clear()", "#input['amount'] = 7", "#input.amount++", "#input.class", "#root",
-            "#results[#input.key].present"})
+        "#input.clear()", "#input['amount'] = 7", "#input.amount++", "#input.class", "#root",
+        "#results[#input.key].present"})
     void rejectsForbiddenSpel(String expr) {
         try (var flowEngine = engine(Map.of("yes", context -> 1, "no", context -> 2))) {
             assertThrows(FlowException.class, () -> flowEngine.register("choice", conditional(expr, "default")));
@@ -269,8 +276,8 @@ class FlowEngineTest {
             assertEquals("MERMAID_BLOCK_COUNT", assertThrows(FlowException.class, () -> flowEngine.register("flow",
                     md("start([开始]) --> a --> finish([结束])")
                             + md("start([开始]) --> a --> finish([结束])"))).code());
-            assertEquals("INVALID_HEADER", assertThrows(FlowException.class, () -> flowEngine
-                    .register("flow", "```mermaid\ngraph TD\nstart([开始]) --> a --> finish([结束])\n```")).code());
+            assertEquals("INVALID_HEADER", assertThrows(FlowException.class, () -> flowEngine.
+                    register("flow", "```mermaid\ngraph TD\nstart([开始]) --> a --> finish([结束])\n```")).code());
         }
     }
 
@@ -299,8 +306,8 @@ class FlowEngineTest {
                             + "a --> join{\"X\"}\n"
                             + "b --> join\n"
                             + "join --> finish([结束])"))).code());
-            assertEquals("CONDITION_NOT_ALLOWED", assertThrows(FlowException.class, () -> flowEngine
-                    .register("flow", md("start([开始]) --> a\na -->|\"true\"| finish([结束])"))).code());
+            assertEquals("CONDITION_NOT_ALLOWED", assertThrows(FlowException.class, () -> flowEngine.
+                    register("flow", md("start([开始]) --> a\na -->|\"true\"| finish([结束])"))).code());
         }
     }
 
@@ -390,8 +397,8 @@ class FlowEngineTest {
                     "child", md("start([开始]) --> work --> finish([结束])")));
             var result = flowEngine.execute("root", null);
             assertEquals(NodeStatus.FAILED, result.results().get("child").status());
-            assertTrue(result.errors().stream()
-                    .anyMatch(exception -> exception.code().equals("CHILD_FLOW_FAILED")));
+            assertTrue(result.errors().stream().
+                    anyMatch(exception -> exception.code().equals("CHILD_FLOW_FAILED")));
         }
     }
 
@@ -497,9 +504,9 @@ class FlowEngineTest {
     void noActiveBranchStartsNestedSubflow() {
         var calls = new AtomicInteger();
         try (var flowEngine = engine(Map.of("yes", context -> 1, "work", context -> calls.incrementAndGet()))) {
-            String parent = conditional("true", "default")
-                    .replace("no[\"no\"]", "child[[\"child\"]]")
-                    .replace("\nno --> merge", "\nchild --> merge");
+            String parent = conditional("true", "default").
+                    replace("no[\"no\"]", "child[[\"child\"]]").
+                    replace("\nno --> merge", "\nchild --> merge");
             flowEngine.registerAll(Map.of("root", parent, "child",
                     md("start([开始]) --> work --> finish([结束])")));
             assertTrue(flowEngine.execute("root", null).succeeded());

@@ -37,5 +37,7 @@ public class FlowException extends RuntimeException {
      *
      * @return 构造时传入的错误码
      */
-    public String code() { return code; }
+    public String code() {
+        return code;
+    }
 }

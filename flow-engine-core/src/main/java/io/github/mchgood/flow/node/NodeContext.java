@@ -46,21 +46,27 @@ public final class NodeContext {
      *
      * @return 本次执行 ID
      */
-    public String executionId() { return executionId; }
+    public String executionId() {
+        return executionId;
+    }
 
     /**
      * 返回当前流程 ID。
      *
      * @return 当前流程 ID
      */
-    public String flowId() { return flowId; }
+    public String flowId() {
+        return flowId;
+    }
 
     /**
      * 返回含调用别名的完整图节点 ID。
      *
      * @return 含调用别名的完整图节点 ID
      */
-    public String nodeId() { return nodeId; }
+    public String nodeId() {
+        return nodeId;
+    }
 
     /**
      * 按 Java 类型读取输入，不做转换或反序列化。
@@ -71,21 +77,27 @@ public final class NodeContext {
      * @throws ClassCastException 输入与目标类型不兼容
      * @throws NullPointerException type 为 null
      */
-    public <T> T input(Class<T> type) { return type.cast(input); }
+    public <T> T input(Class<T> type) {
+        return type.cast(input);
+    }
 
     /**
      * 读取原始输入引用。
      *
      * @return 原始输入，可为 null
      */
-    public Object input() { return input; }
+    public Object input() {
+        return input;
+    }
 
     /**
      * 读取当前执行的祖先快照，包含跳过的祖先。
      *
      * @return 不可修改的 Map，键为完整图节点 ID
      */
-    public Map<String, NodeRecord> ancestors() { return ancestors; }
+    public Map<String, NodeRecord> ancestors() {
+        return ancestors;
+    }
 
     /**
      * 读取祖先状态。
@@ -94,7 +106,9 @@ public final class NodeContext {
      * @return 祖先状态
      * @throws FlowException ID 不存在或不是可见祖先，错误码 CONTEXT_ACCESS_DENIED
      */
-    public NodeStatus ancestorStatus(String id) { return record(id).status(); }
+    public NodeStatus ancestorStatus(String id) {
+        return record(id).status();
+    }
 
     /**
      * 读取输出存在性及原始值。

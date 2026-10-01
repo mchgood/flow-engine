@@ -1,0 +1,173 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
+<!--
+  阿里巴巴 Java 开发手册的格式与命名子集。
+
+  只覆盖可机械判定的排版与标识符规则；异常、日志、并发、集合、Javadoc 等语义规约
+  不在本闸门范围内（见设计文档 2.2 非目标）。
+
+  命名白名单仅 i / j / k（循环下标与 lambda 参数）、id、to（领域词）。
+  规则依据：docs/superpowers/specs/2026-09-30-alibaba-code-style-remediation-design.md 第 4、5 节。
+-->
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="warning"/>
+    <property name="fileExtensions" value="java"/>
+
+    <module name="FileTabCharacter">
+        <property name="eachLine" value="true"/>
+    </module>
+    <module name="NewlineAtEndOfFile">
+        <property name="lineSeparator" value="lf"/>
+    </module>
+    <module name="LineLength">
+        <property name="max" value="120"/>
+        <property name="ignorePattern" value="^(package|import) .*|.*\bhttps?://\S*"/>
+    </module>
+
+    <module name="TreeWalker">
+
+        <!-- import 规约 -->
+        <module name="AvoidStarImport">
+            <property name="allowClassImports" value="false"/>
+            <property name="allowStaticMemberImports" value="false"/>
+        </module>
+        <module name="RedundantImport"/>
+        <module name="UnusedImports">
+            <property name="processJavadoc" value="true"/>
+        </module>
+        <module name="IllegalImport"/>
+        <module name="ImportOrder">
+            <property name="option" value="bottom"/>
+            <property name="groups" value="io.github.mchgood,org,com,java,javax"/>
+            <property name="separated" value="true"/>
+            <property name="ordered" value="true"/>
+            <property name="caseSensitive" value="true"/>
+            <property name="sortStaticImportsAlphabetically" value="true"/>
+        </module>
+
+        <!-- 大括号与块 -->
+        <module name="NeedBraces">
+            <property name="allowSingleLineStatement" value="false"/>
+        </module>
+        <module name="LeftCurly">
+            <property name="option" value="eol"/>
+        </module>
+        <module name="RightCurly">
+            <property name="option" value="same"/>
+            <property name="tokens"
+                      value="LITERAL_TRY,LITERAL_CATCH,LITERAL_FINALLY,LITERAL_IF,LITERAL_ELSE,LITERAL_DO"/>
+        </module>
+        <module name="RightCurly">
+            <property name="option" value="alone_or_singleline"/>
+            <property name="tokens"
+                      value="CLASS_DEF,METHOD_DEF,CTOR_DEF,LITERAL_FOR,LITERAL_WHILE,STATIC_INIT,INSTANCE_INIT,RECORD_DEF"/>
+        </module>
+        <module name="EmptyBlock">
+            <property name="option" value="text"/>
+        </module>
+        <module name="EmptyCatchBlock">
+            <property name="exceptionVariableName" value="ignored"/>
+        </module>
+        <module name="EmptyStatement"/>
+        <module name="AvoidNestedBlocks"/>
+
+        <!-- 空白 -->
+        <module name="WhitespaceAround">
+            <property name="allowEmptyTypes" value="true"/>
+            <property name="allowEmptyConstructors" value="true"/>
+            <property name="allowEmptyMethods" value="true"/>
+            <property name="allowEmptyLambdas" value="true"/>
+            <property name="allowEmptyCatches" value="true"/>
+        </module>
+        <module name="WhitespaceAfter"/>
+        <module name="NoWhitespaceBefore"/>
+        <module name="NoWhitespaceAfter"/>
+        <module name="GenericWhitespace"/>
+        <module name="MethodParamPad"/>
+        <module name="ParenPad"/>
+        <module name="TypecastParenPad"/>
+        <module name="SingleSpaceSeparator"/>
+        <module name="NoLineWrap"/>
+        <module name="EmptyForInitializerPad"/>
+        <module name="EmptyForIteratorPad"/>
+
+        <!-- 语句与声明 -->
+        <module name="OneStatementPerLine"/>
+        <module name="MultipleVariableDeclarations"/>
+        <module name="OneTopLevelClass"/>
+        <module name="OuterTypeFilename"/>
+
+        <!-- 折行与缩进 -->
+        <module name="Indentation">
+            <property name="basicOffset" value="4"/>
+            <property name="braceAdjustment" value="0"/>
+            <property name="caseIndent" value="4"/>
+            <property name="throwsIndent" value="8"/>
+            <property name="arrayInitIndent" value="4"/>
+            <property name="lineWrappingIndentation" value="4"/>
+            <property name="forceStrictCondition" value="false"/>
+        </module>
+        <module name="OperatorWrap">
+            <property name="option" value="nl"/>
+        </module>
+        <module name="SeparatorWrap">
+            <property name="option" value="eol"/>
+            <property name="tokens" value="COMMA,DOT"/>
+        </module>
+
+        <!-- 注解与修饰符 -->
+        <module name="AnnotationLocation">
+            <property name="allowSamelineSingleParameterlessAnnotation" value="false"/>
+            <property name="allowSamelineParameterizedAnnotation" value="false"/>
+            <property name="allowSamelineMultipleAnnotations" value="false"/>
+        </module>
+        <module name="ModifierOrder"/>
+        <module name="ArrayTypeStyle"/>
+        <module name="UpperEll"/>
+
+        <!-- 命名规约：白名单仅 i/j/k/id/to -->
+        <module name="PackageName">
+            <property name="format" value="^[a-z]+(\.[a-z][a-z0-9]*)*$"/>
+        </module>
+        <module name="TypeName">
+            <property name="format" value="^[A-Z][a-zA-Z0-9]*$"/>
+        </module>
+        <module name="MethodName">
+            <property name="format" value="^[a-z][a-zA-Z0-9]*$"/>
+        </module>
+        <module name="MemberName">
+            <property name="format" value="^(?:id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="StaticVariableName">
+            <property name="format" value="^(?:id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="ParameterName">
+            <property name="format" value="^(?:id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="RecordComponentName">
+            <property name="format" value="^(?:id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="CatchParameterName">
+            <property name="format" value="^(?:id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="PatternVariableName">
+            <property name="format" value="^(?:id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="LocalVariableName">
+            <property name="format" value="^(?:i|j|k|id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="LocalFinalVariableName">
+            <property name="format" value="^(?:i|j|k|id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="LambdaParameterName">
+            <property name="format" value="^(?:i|j|k|id|to|[a-z][a-zA-Z0-9]{2,})$"/>
+        </module>
+        <module name="ConstantName">
+            <property name="format" value="^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$|^LOG$"/>
+        </module>
+    </module>
+</module>

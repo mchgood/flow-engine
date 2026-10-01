@@ -43,5 +43,7 @@ public record FlowResult(String executionId, String rootExecutionId, String pare
      *
      * @return 仅当 status 为 SUCCEEDED 时返回 true
      */
-    public boolean succeeded() { return status == FlowStatus.SUCCEEDED; }
+    public boolean succeeded() {
+        return status == FlowStatus.SUCCEEDED;
+    }
 }

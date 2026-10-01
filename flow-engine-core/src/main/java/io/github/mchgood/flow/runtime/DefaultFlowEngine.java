@@ -108,7 +108,9 @@ public final class DefaultFlowEngine implements FlowEngine {
      * {@inheritDoc}
      */
     @Override
-    public FlowDescriptor register(String id, String markdown) { return registerAll(Map.of(id, markdown)).get(0); }
+    public FlowDescriptor register(String id, String markdown) {
+        return registerAll(Map.of(id, markdown)).get(0);
+    }
 
     /**
      * {@inheritDoc}
