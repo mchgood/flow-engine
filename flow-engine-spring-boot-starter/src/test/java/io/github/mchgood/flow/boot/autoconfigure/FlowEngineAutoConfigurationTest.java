@@ -5,8 +5,11 @@ import io.github.mchgood.flow.config.EngineConfig;
 import io.github.mchgood.flow.exception.FlowException;
 import io.github.mchgood.flow.node.FlowNode;
 import io.github.mchgood.flow.node.NodeContext;
+import io.github.mchgood.flow.result.FlowResult;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
+import io.github.mchgood.flow.spi.FlowExecutionInterceptor;
+import io.github.mchgood.flow.spi.NodeExecutionInterceptor;
 import io.github.mchgood.flow.spi.NodeResolver;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 
@@ -19,10 +22,13 @@ import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,6 +48,7 @@ class FlowEngineAutoConfigurationTest {
             echo --> finish([结束])
         ```
         """;
+    private static final List<String> EVENTS = new CopyOnWriteArrayList<>();
 
     @Test
     void defaultBeansExecuteAnApplicationNode() {
@@ -234,6 +241,81 @@ class FlowEngineAutoConfigurationTest {
                 engine.register("primary", FLOW);
                 assertThat(engine.execute("primary", null).results().get("echo").value()).isEqualTo(2);
             });
+    }
+
+    @Test
+    void interceptorBeansAreCollectedInSpringOrder() {
+        EVENTS.clear();
+        runner.withUserConfiguration(EchoNode.class, FirstFlowInterceptor.class, SecondFlowInterceptor.class,
+            NodeSpy.class).run(context -> {
+                assertThat(context).hasSingleBean(FlowEngine.class);
+                FlowEngine engine = context.getBean(FlowEngine.class);
+                engine.register("echoFlow", FLOW);
+                FlowResult result = engine.execute("echoFlow", "hello");
+                assertThat(result.succeeded()).isTrue();
+                assertThat(EVENTS.indexOf("first:beforeFlow")).isLessThan(EVENTS.indexOf("second:beforeFlow"));
+                assertThat(EVENTS.indexOf("first:afterFlow")).isLessThan(EVENTS.indexOf("second:afterFlow"));
+                assertThat(EVENTS.indexOf("first:afterFlow")).isLessThan(EVENTS.indexOf("first:onSuccess"));
+                assertThat(EVENTS.indexOf("second:afterFlow")).isLessThan(EVENTS.indexOf("second:onSuccess"));
+                assertThat(EVENTS).contains("node:beforeNode", "node:afterNode", "node:onSuccess");
+                assertThat(EVENTS.stream().filter("first:beforeFlow"::equals).count()).isEqualTo(1);
+            });
+    }
+
+    /**
+     * 顺序一的流程拦截器，记录前置、后置与成功钩子。
+     */
+    @Component
+    @Order(1)
+    static class FirstFlowInterceptor implements FlowExecutionInterceptor {
+        public void beforeFlow(String flowId, String executionId, Object input) {
+            EVENTS.add("first:beforeFlow");
+        }
+
+        public void afterFlow(FlowResult result) {
+            EVENTS.add("first:afterFlow");
+        }
+
+        public void onSuccess(FlowResult result) {
+            EVENTS.add("first:onSuccess");
+        }
+    }
+
+    /**
+     * 顺序二的流程拦截器，记录前置、后置与成功钩子。
+     */
+    @Component
+    @Order(2)
+    static class SecondFlowInterceptor implements FlowExecutionInterceptor {
+        public void beforeFlow(String flowId, String executionId, Object input) {
+            EVENTS.add("second:beforeFlow");
+        }
+
+        public void afterFlow(FlowResult result) {
+            EVENTS.add("second:afterFlow");
+        }
+
+        public void onSuccess(FlowResult result) {
+            EVENTS.add("second:onSuccess");
+        }
+    }
+
+    /**
+     * 节点拦截器探针，记录前置、后置与成功钩子。
+     */
+    @Component
+    static class NodeSpy implements NodeExecutionInterceptor {
+        public void beforeNode(NodeContext context) {
+            EVENTS.add("node:beforeNode");
+        }
+
+        public void afterNode(NodeContext context, io.github.mchgood.flow.spi.NodeOutcome outcome) {
+            EVENTS.add("node:afterNode");
+        }
+
+        public void onSuccess(NodeContext context, Object value) {
+            EVENTS.add("node:onSuccess");
+        }
     }
 
     /**

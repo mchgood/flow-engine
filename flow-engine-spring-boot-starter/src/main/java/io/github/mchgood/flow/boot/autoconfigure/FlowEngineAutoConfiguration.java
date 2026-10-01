@@ -6,7 +6,9 @@ import io.github.mchgood.flow.boot.flows.LocalMarkdownFlowSource;
 import io.github.mchgood.flow.config.EngineConfig;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
+import io.github.mchgood.flow.spi.FlowExecutionInterceptor;
 import io.github.mchgood.flow.spi.FlowSource;
+import io.github.mchgood.flow.spi.NodeExecutionInterceptor;
 import io.github.mchgood.flow.spi.NodeResolver;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 import io.github.mchgood.flow.spring.SpringNodeResolver;
@@ -71,17 +73,22 @@ public class FlowEngineAutoConfiguration {
     }
 
     /**
-     * 装配由容器管理关闭的共享引擎。
+     * 装配由容器管理关闭的共享引擎；容器内全部流程与节点拦截器 Bean 按顺序收集。
      *
      * @param resolver 节点解析器
      * @param evaluator 条件求值器
      * @param config 固定资源配置
+     * @param flowInterceptors 流程级拦截器提供者，可为空
+     * @param nodeInterceptors 节点级拦截器提供者，可为空
      * @return 标准执行器
      */
     @Bean(destroyMethod = "close")
     @ConditionalOnMissingBean(FlowEngine.class)
-    public DefaultFlowEngine flowEngine(NodeResolver resolver, ConditionEvaluator evaluator, EngineConfig config) {
-        return new DefaultFlowEngine(resolver, evaluator, config);
+    public DefaultFlowEngine flowEngine(NodeResolver resolver, ConditionEvaluator evaluator, EngineConfig config,
+            ObjectProvider<FlowExecutionInterceptor> flowInterceptors,
+            ObjectProvider<NodeExecutionInterceptor> nodeInterceptors) {
+        return new DefaultFlowEngine(resolver, evaluator, config, flowInterceptors.orderedStream().toList(),
+                nodeInterceptors.orderedStream().toList());
     }
 
     /**
