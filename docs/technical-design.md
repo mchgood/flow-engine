@@ -1,9 +1,9 @@
 # Flow Engine 技术方案
 
-版本：v0.4 · 评审草案（调用别名与子流程）  
-日期：2026-09-05  
+版本：v0.4（调用别名与子流程；已补充 Starter 和泛型输出）  
+日期：2026-09-05；指令与状态校订：2026-09-06  
 依据：Flow Engine 需求文档 v0.4，纯框架定位，包含图形与条件网关约定。  
-状态：设计方案，尚未实现或执行性能验证。接口代码用于说明契约，不是完整可编译工程。
+状态：工程已实现并具备自动化测试；本文保留设计说明和验证规划，不代表所有设计细节或性能目标均已验证。接口摘要省略实现，以源码契约及 [快速使用](quick-start.md) 的接入示例为准；发现设计与实现差异时需明确报告。已验证范围见 [测试覆盖审查](testing-coverage.md)。
 
 ## 1. 总体决策
 
@@ -79,15 +79,7 @@ public interface FlowNode<O> {
     O execute(NodeContext context) throws Exception;
 }
 
-public interface NodeContext {
-    String executionId();
-    String flowId();
-    String nodeId();
-    <T> T input(Class<T> type);
-    NodeStatus ancestorStatus(String nodeId);
-    NodeOutput ancestorOutput(String nodeId);
-    <T> T ancestorValue(String nodeId, Class<T> type);
-}
+// NodeContext 是引擎提供的 final 类；方法及错误契约见下方源码链接。
 
 // present=true 且 value=null 表示成功但无输出。
 public record NodeOutput(boolean present, Object value) {}
@@ -104,7 +96,7 @@ public interface NodeResolver {
 }
 ```
 
-ancestorOutput 指任意祖先的输出。非祖先访问抛出 ContextAccessException；祖先成功但返回 null，NodeOutput 仍为 present=true。ancestorValue 返回 null 或检查类型后返回值，不做 JSON 序列化转换。类型不匹配作为节点失败处理。上下文包含所有静态祖先的已终结状态，以及成功祖先的输出。未选祖先返回 present=false，可查询 SKIPPED；ancestorValue 对 present=false 抛 MissingNodeOutputException，对成功 null 返回 null。不存在或非祖先仍抛 ContextAccessException。
+[NodeContext 源码契约](../flow-engine-core/src/main/java/io/github/mchgood/flow/node/NodeContext.java) 定义祖先访问：不存在或非祖先抛 FlowException（CONTEXT_ACCESS_DENIED）；祖先成功但返回 null 时 present=true。未选祖先 present=false，可查询 SKIPPED；ancestorValue 对无成功输出抛 FlowException（MISSING_NODE_OUTPUT），对成功 null 返回 null。值通过 Class.cast 检查，类型不匹配抛 ClassCastException 并使调用节点失败，不做 JSON 转换。上下文包含静态祖先的已终结状态和成功输出；只读集合不代表业务对象被深度冻结。
 
 ### 3.1 节点示例
 
@@ -531,13 +523,13 @@ DefinitionError 包含 code、message、sourceName、line、column、nodeId、ed
 | 4 | Spring 适配、完整示例、接入文档 | 真实代理 Bean 串并行接入通过 |
 | 5 | 基准和代码审查 | 正确性门槛通过，明确容量建议 |
 
-本方案随需求 v0.3 使用 SpEL 出边条件，首期保留条件网关及跳过传播，不引入平台功能。实现前优先确认三项新增细节：节点限定 singleton；根同步调用线程承担整棵父子执行树的协调和截止时间等待；调用中断与强制关闭采用 FAILED 并附原因码。默认容量和期限均为可配置起点，不是业务 SLA。
+当前实现使用 SpEL 出边条件和跳过传播；节点限定 singleton，根同步调用线程协调父子执行树并等待截止时间，调用中断与强制关闭采用 FAILED 并附原因码。这些属于已有执行约束；上表保留实施组织方式，不要求重新按阶段开发或审批。默认容量和期限是可配置起点，不是业务 SLA；性能基准仍需单独验证。
 
 ## 13. v0.4 变更与设计边界
 
 统一 TASK/CALL_FLOW 的小驼峰 targetId 与单下划线 alias，移除注释映射；引入双边框子流程、批量原子注册和引用环校验。根调用线程与共享短锁管理整棵执行树，子完成事件推进父节点，无工作线程同步等待。数据隔离、嵌套结果、期限/取消传播与树容量同步落入契约和测试。
 
-SpEL 唯一匹配、正常跳过传播及原排他区域限制保留。本次没有新增父子数据映射语言或循环执行；子流程默认接收原始 input。方案尚待实现和并发验证，尤其要验证单线程多层嵌套与父超时/子完成的竞争。
+SpEL 唯一匹配、正常跳过传播及原排他区域限制保留。本次没有新增父子数据映射语言或循环执行；子流程默认接收原始 input。单线程多层嵌套与父超时/子完成已有测试覆盖，但不能推断所有并发交错均已验证；具体场景和剩余缺口见测试覆盖审查。
 
 
 ## Spring Boot Starter 接入设计
