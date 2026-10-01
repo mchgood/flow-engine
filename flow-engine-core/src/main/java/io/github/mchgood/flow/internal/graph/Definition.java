@@ -4,7 +4,16 @@ import io.github.mchgood.flow.api.FlowDescriptor;
 import io.github.mchgood.flow.node.FlowNode;
 import io.github.mchgood.flow.spi.CompiledCondition;
 import io.github.mchgood.flow.spi.SourceLocation;
-import java.util.*;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * 跨编译器和运行时共享的不可变执行拓扑。
@@ -70,7 +79,17 @@ public final class Definition {
         /**
          * 完整图 ID、显示标签与去别名后的调用目标；控制节点 target 为 null。
          */
-        public final String id, label, target;
+        public final String id;
+
+        /**
+         * 完整图 ID、显示标签与去别名后的调用目标；控制节点 target 为 null。
+         */
+        public final String label;
+
+        /**
+         * 完整图 ID、显示标签与去别名后的调用目标；控制节点 target 为 null。
+         */
+        public final String target;
 
         /**
          * 节点执行语义。
@@ -103,8 +122,12 @@ public final class Definition {
         public final List<Edge> outgoingEdges;
 
         private Node(NodeSpec spec, List<Edge> incoming, List<Edge> outgoing) {
-            id = spec.id(); label = spec.label(); target = spec.target();
-            type = spec.type(); location = spec.location(); bean = spec.bean();
+            id = spec.id();
+            label = spec.label();
+            target = spec.target();
+            type = spec.type();
+            location = spec.location();
+            bean = spec.bean();
             ancestors = Collections.unmodifiableSet(new LinkedHashSet<>(spec.ancestors()));
             incomingEdges = Collections.unmodifiableList(incoming);
             outgoingEdges = Collections.unmodifiableList(outgoing);
@@ -119,12 +142,22 @@ public final class Definition {
         /**
          * 端点组合的边 ID 与原始标签；无标签时 text 为 null。
          */
-        public final String id, text;
+        public final String id;
+
+        /**
+         * 端点组合的边 ID 与原始标签；无标签时 text 为 null。
+         */
+        public final String text;
 
         /**
          * 当前图内的源节点与目标节点。
          */
-        public final Node from, to;
+        public final Node from;
+
+        /**
+         * 当前图内的源节点与目标节点。
+         */
+        public final Node to;
 
         /**
          * 原始定义中的诊断位置。
@@ -140,7 +173,9 @@ public final class Definition {
             from = Objects.requireNonNull(nodes.get(spec.from()));
             to = Objects.requireNonNull(nodes.get(spec.to()));
             id = from.id + "->" + to.id;
-            text = spec.text(); location = spec.location(); condition = spec.condition();
+            text = spec.text();
+            location = spec.location();
+            condition = spec.condition();
         }
 
         /**
@@ -148,13 +183,20 @@ public final class Definition {
          *
          * @return 原始标签严格等于 default 时为 true
          */
-        public boolean fallback() { return "default".equals(text); }
+        public boolean fallback() {
+            return "default".equals(text);
+        }
     }
 
     /**
      * 流程 ID 与原始 Markdown 的 SHA-256 摘要。
      */
-    public final String id, hash;
+    public final String id;
+
+    /**
+     * 流程 ID 与原始 Markdown 的 SHA-256 摘要。
+     */
+    public final String hash;
 
     /**
      * 按完整节点 ID 索引的只读节点表。
@@ -202,5 +244,7 @@ public final class Definition {
      *
      * @return 流程 ID、摘要和节点数
      */
-    public FlowDescriptor descriptor() { return new FlowDescriptor(id, hash, nodes.size()); }
+    public FlowDescriptor descriptor() {
+        return new FlowDescriptor(id, hash, nodes.size());
+    }
 }
