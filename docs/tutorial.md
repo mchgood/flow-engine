@@ -294,10 +294,12 @@ FlowResult result = engine.execute("orderFlow", input,
 | `ConditionEvaluator` | 注册期 `parse`，运行期 `evaluate` | 接入规则引擎、决策服务 | 定义 `ConditionEvaluator` Bean |
 | `FlowSource` | 启动期：提供流程 Markdown 文档 | Nacos、数据库、远程配置中心 | 定义 `FlowSource` Bean（定义后本地文件来源退让，多个来源可共存） |
 | `EngineConfig` | 引擎创建期：固定资源与期限参数 | 程序化配置资源 | 定义 `EngineConfig` Bean |
+| `FlowExecutionInterceptor` | 执行期：根流程开始前与到达终态后 | 审计、指标、调用链追踪 | 定义一个或多个 `FlowExecutionInterceptor` Bean（按 `@Order` 排序，全部生效） |
+| `NodeExecutionInterceptor` | 执行期：TASK 节点执行前后与终态 | 节点级审计、埋点、失败告警 | 定义一个或多个 `NodeExecutionInterceptor` Bean |
 
 约定：
 
-- 表中除业务节点外的四行才是覆盖默认实现的扩展点；业务节点不是扩展点，`@Component` 类是常规注册方式，`NodeResolver` 等扩展点仍以 Bean 方式覆盖。
+- 表中除业务节点外的行分两类：`NodeResolver`、`ConditionEvaluator`、`FlowSource`、`EngineConfig` 是覆盖默认实现的扩展点（宿主定义即退让）；两个执行拦截器是叠加式扩展，多个 Bean 全部生效、互不退让。
 - 在 Spring Boot 中，宿主定义同类型 Bean 即可，默认实现通过 `@ConditionalOnMissingBean` 自动退让；每种类型通常只定义一个，存在多个候选时需要 `@Primary` 明确选择。
 - 在普通 Spring 中没有"退让"的概念，直接把你的实现传入 `new DefaultFlowEngine(resolver, evaluator, config)`。
 - 替换 `ConditionEvaluator` 时，只读、严格 Boolean 等语义约束由你自行维持（见第 8 章硬约束）。
@@ -572,7 +574,67 @@ public FlowSource nacosFlowSource() {
 - 文档格式与本地文件完全一致：一级标题即 flowId（须匹配 `[a-z][A-Za-z0-9]*`），每个标题下恰好一个 `mermaid` 代码块。MD 超过 1 MiB（UTF-8 字节）、flowId 非法、重复标题、缺 mermaid 块等限制由引擎与加载管线统一校验（错误码如 `DEFINITION_LIMIT`、`INVALID_FLOW_HEADING`、`MERMAID_BLOCK_COUNT`），`FlowSource` 实现无需重复校验。
 - `flow-engine.flows.enabled=false` 会同时关闭本地文件扫描与自定义 `FlowSource` 的消费；`FlowSource` 中的内容同样不会被自动执行，执行时机始终由宿主控制。
 
-### 10. EngineConfig 程序化覆盖
+### 10. 实战 4：执行拦截器
+
+这章你会学到：如何在根流程与业务节点的前后植入审计、指标或失败告警逻辑，以及前置拦截失败与后置异常的确切语义。
+
+`FlowExecutionInterceptor` 只对根流程触发（子流程不回调），`NodeExecutionInterceptor` 只对实际运行的 TASK 业务节点触发（网关、汇合与子调用不回调）。四个钩子都是 default 方法，按需覆盖即可：
+
+```java
+import io.github.mchgood.flow.result.FlowResult;
+import io.github.mchgood.flow.spi.FlowExecutionInterceptor;
+
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+@Component
+@Order(1)
+public class AuditFlowInterceptor implements FlowExecutionInterceptor {
+
+    @Override
+    public void beforeFlow(String flowId, String executionId, Object input) {
+        // flowId/executionId 可直接关联终态 FlowResult.executionId()
+    }
+
+    @Override
+    public void afterFlow(FlowResult result) {
+        // 必调一次;成功与否由 result.succeeded() 判断
+    }
+}
+```
+
+节点级拦截器拿到与业务 Bean 相同的 `NodeContext`,终态通过 `NodeOutcome` 快照读取：
+
+```java
+import io.github.mchgood.flow.node.NodeContext;
+import io.github.mchgood.flow.spi.NodeExecutionInterceptor;
+
+import org.springframework.stereotype.Component;
+
+@Component
+public class SlowNodeGuard implements NodeExecutionInterceptor {
+
+    @Override
+    public void beforeNode(NodeContext context) {
+        // 耗时计入该节点 nodeTimeout 预算,务必快速返回
+    }
+
+    @Override
+    public void onFailure(NodeContext context, String errorCode, String message) {
+        // 失败/超时终态告警;成功终态走 onSuccess,两者互斥
+    }
+}
+```
+
+硬约束（与 [requirements](requirements.md) FR-17 一致）：
+
+- 全部钩子在引擎根协调锁外执行：流程级在 `execute` 调用者线程，节点级在 worker 线程；实现必须线程安全且快速返回，重活自行异步。
+- 前置拦截抛异常：根流程以 `INTERCEPTOR_FAILED` 快速失败且不运行任何节点；节点以 `INTERCEPTOR_FAILED` 失败并停止后续传播。
+- 后置与终态钩子抛异常：仅记录日志，节点与流程终态不变。
+- `afterFlow`/`afterNode` 必调一次，成功与失败钩子互斥且在其后调用；从未运行的节点（未激活、强制终止前未启动）不产生回调。
+- 普通 Spring 按构造器列表顺序通知；Boot 按 `@Order` 收集容器内全部拦截器 Bean。
+
+### 11. EngineConfig 程序化覆盖
 
 这章你会学到：如何用代码精确设定线程、队列、并发额度与各层期限，以及它与配置文件的关系。
 
@@ -617,7 +679,7 @@ public class EngineTuningConfiguration {
 - 普通 Spring 项目不经过 starter，直接把配置传给引擎：`new DefaultFlowEngine(resolver, evaluator, config)`。
 - 不需要全量手写 11 个参数时，可以基于 `EngineConfig.defaults()` 的值理解语义后按需调整；本表中的默认值即 `EngineConfig.defaults()` 的实际取值。
 
-### 11. 扩展点测试要点
+### 12. 扩展点测试要点
 
 这章你会学到：为扩展点编写测试时应断言什么，以及并发与注册期校验失败路径怎么测。
 

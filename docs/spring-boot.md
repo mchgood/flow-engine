@@ -137,6 +137,8 @@ flow-engine:
 
 每种类型通常只定义一个 Bean；存在多个候选时需使用 `@Primary` 明确选择。替换条件求值器时，宿主需自行维持只读和严格 Boolean 语义。
 
+除按类型退让的 Bean 外，容器中的 `FlowExecutionInterceptor` 与 `NodeExecutionInterceptor` Bean 会被自动收集并按 `@Order` 顺序注入引擎（叠加生效、互不退让，可定义任意多个）：前者在根流程开始前与到达终态后、后者在 TASK 节点执行前后与终态时获得通知。前置拦截抛出异常使流程或节点以 `INTERCEPTOR_FAILED` 失败；后置与终态钩子异常仅记录日志，不影响终态。全部钩子在引擎根协调锁外执行，须线程安全且快速返回。语义详见 [requirements](requirements.md) FR-17 与 [教程实战 4](tutorial.md)。
+
 不使用 Spring Boot 的项目继续依赖 `flow-engine-spring`，按照[普通 Spring 快速使用](quick-start.md)手动创建引擎即可。
 
 自动配置设计参考 [Spring Boot 官方指南](https://docs.spring.io/spring-boot/reference/features/developing-auto-configuration.html)，版本基线参考 [系统要求](https://docs.spring.io/spring-boot/system-requirements.html)。

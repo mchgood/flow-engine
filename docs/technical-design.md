@@ -382,6 +382,16 @@ flowchart TD
 
 **容量。** maxConcurrentExecutions 只限制外部根调用，子调用不重复获取该许可。建议 maxSubflowDepth=8（根为0），maxExecutionsPerRoot=128（含根、累计创建数），maxActiveChildrenPerRoot=32；达到上限立即使 CALL_FLOW FAILED（SUBFLOW_LIMIT_EXCEEDED），不阻塞等待许可。注册时验证最大静态深度，运行时仍检查容量。所有叶子工作共享有界工作池，线程数为1也能推进完整嵌套流程。
 
+### 6.8 执行拦截器
+
+流程级与节点级拦截器在引擎构造时固化为不可变列表（List.copyOf），全部钩子在根协调锁外按列表顺序调用，与"不持锁调用业务代码"的不变量一致。
+
+**流程级。** execute() 在注册快照锁释放后、首次调度前，于调用者线程调用 beforeFlow(flowId, executionId, input)；此时根实例已创建并占用准入额度。前置抛出非 VirtualMachineError 异常时：移除根、释放额度、抛 INTERCEPTOR_FAILED——流程不运行任何节点。终态结果在持锁协调循环内取得，锁释放与 roots/额度清理完成后按序调用 afterFlow，再按 result.succeeded() 互斥调用 onSuccess/onFailure；钩子耗时计入调用者等待，不再计入流程期限。子流程 Execution 的终态不产生流程级回调。
+
+**节点级。** runNode() 在准入检查通过、状态置 RUNNING（节点期限已设定）并释放根锁后，先按序调用 beforeNode 再执行业务 Bean，因此前置耗时计入 nodeTimeout 预算，重新持锁的 expire 仍可判超时且迟到成功不覆盖终态。beforeNode 抛出异常被包装为 INTERCEPTOR_FAILED 的 FlowException，进入既有失败传播路径。success/fail 在锁内定型后，于锁外按锁内固化的终态构建 NodeOutcome（错误码与消息取自 FlowError，成功时为 null、value 为业务输出），再按序调用 afterNode 与互斥终态钩子。从未进入 RUNNING 的节点（准入即过期、强制跳过、未激活）不触发任何钩子；因流程超时被强制终结的运行中节点以失败终态触发 afterNode/onFailure。
+
+**异常与排序。** 后置与终态钩子异常逐钩子捕获并记录 WARNING，不影响已发布终态、不阻断后续拦截器；VirtualMachineError 始终原样上抛。多拦截器按构造列表顺序执行；普通 Spring 由构造器传入列表，Spring Boot 经 ObjectProvider.orderedStream() 收集容器内全部拦截器 Bean 并遵循 @Order。
+
 ## 7. 线程池、容量与取消
 
 默认创建框架专用 ThreadPoolExecutor，固定工作线程数＋ArrayBlockingQueue＋AbortPolicy。禁止 CallerRunsPolicy，以免调用线程执行业务而无法处理截止时间；禁止静默丢弃策略。JDK 提供有界队列及拒绝处理机制。[ThreadPoolExecutor](https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/ThreadPoolExecutor.html)

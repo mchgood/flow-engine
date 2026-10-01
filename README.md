@@ -11,6 +11,7 @@
 - 使用 Mermaid 双边框节点同步调用子流程
 - 流程、节点超时，并发与队列容量限制
 - 每次执行独立的节点状态、结果和错误记录
+- 流程级与节点级执行拦截器（前置/后置/成功/失败钩子，锁外按序通知）
 - 注册阶段校验非法语法、缺失 Bean、环和子流程循环引用
 
 项目定位是进程内执行框架，不提供数据库、管理平台、分布式调度或人工审批能力。
@@ -120,7 +121,7 @@ flowchart TD
 | --- | --- |
 | `api` | 流程入口：FlowEngine、FlowDescriptor、ExecutionOptions |
 | `node` | 业务节点契约：FlowNode、NodeContext |
-| `spi` | 扩展适配契约：NodeResolver、ConditionEvaluator、CompiledCondition、SourceLocation |
+| `spi` | 扩展适配契约：NodeResolver、ConditionEvaluator、CompiledCondition、SourceLocation、FlowSource、FlowExecutionInterceptor、NodeExecutionInterceptor |
 | `config` | 引擎资源与期限配置：EngineConfig |
 | `result` | 执行结果、节点状态和错误记录 |
 | `exception` | 调用与定义错误：FlowException |
