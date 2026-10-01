@@ -80,6 +80,27 @@ class FlowEngineAutoConfigurationTest {
             });
     }
 
+    @Test
+    void flowsAutoLoadHasDefaults() {
+        runner.run(context -> {
+            var flows = context.getBean(FlowEngineProperties.class).getFlows();
+            assertThat(flows.isEnabled()).isTrue();
+            assertThat(flows.getLocations()).containsExactly("classpath*:flows/*.md");
+        });
+    }
+
+    @Test
+    void bindsFlowsAutoLoadProperties() {
+        runner.withPropertyValues("flow-engine.flows.enabled=false",
+            "flow-engine.flows.locations[0]=classpath:custom/*.md",
+            "flow-engine.flows.locations[1]=file:./flows/*.md").run(context -> {
+                assertThat(context).hasNotFailed();
+                var flows = context.getBean(FlowEngineProperties.class).getFlows();
+                assertThat(flows.isEnabled()).isFalse();
+                assertThat(flows.getLocations()).containsExactly("classpath:custom/*.md", "file:./flows/*.md");
+            });
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"worker-threads=0", "queue-capacity=-1", "node-timeout=0s",
         "flow-timeout=2d", "gateway-timeout=not-a-duration", "max-subflow-depth=33", "worker-threadz=2"})
@@ -168,7 +189,7 @@ class FlowEngineAutoConfigurationTest {
             assertThat(stream).isNotNull();
             String metadata = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
             assertThat(metadata).contains("flow-engine.worker-threads", "flow-engine.enabled",
-                    "flow-engine.node-timeout");
+                    "flow-engine.node-timeout", "flow-engine.flows.enabled", "flow-engine.flows.locations");
         }
     }
 

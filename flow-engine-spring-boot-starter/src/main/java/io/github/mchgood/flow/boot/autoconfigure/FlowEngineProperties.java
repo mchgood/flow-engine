@@ -5,12 +5,14 @@ import io.github.mchgood.flow.config.EngineConfig;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.List;
 
 /**
  * 以 flow-engine 为前缀的 Spring Boot 启动配置。
  * <p>默认资源值来自 EngineConfig.defaults()；setter 仅负责绑定，资源范围在转为
  * EngineConfig 时校验。未知属性拒绝绑定；本对象不是运行期动态调参入口。
  * 自定义 EngineConfig Bean 会使默认转换工厂退让，属性本身不会覆写该 Bean。
+ * <p>flows 嵌套配置控制启动期流程文件自动加载；关闭后不扫描文件也不消费自定义 FlowSource Bean。
  */
 @ConfigurationProperties(prefix = "flow-engine", ignoreUnknownFields = false)
 public class FlowEngineProperties {
@@ -75,6 +77,8 @@ public class FlowEngineProperties {
      * 关闭等待根调用的期限，默认 10 秒。
      */
     private Duration closeTimeout = DEFAULTS.closeTimeout();
+
+    private final Flows flows = new Flows();
 
     /**
      * 读取是否启用自动装配，默认 true。
@@ -290,6 +294,68 @@ public class FlowEngineProperties {
      */
     public void setCloseTimeout(Duration closeTimeout) {
         this.closeTimeout = closeTimeout;
+    }
+
+    /**
+     * 读取流程文件自动加载配置。
+     *
+     * @return 自动加载嵌套配置，永不为 null
+     */
+    public Flows getFlows() {
+        return flows;
+    }
+
+    /**
+     * 流程文件自动加载配置（前缀 flow-engine.flows）。
+     * <p>enabled 为 false 时整个自动加载子系统关闭：不创建本地来源与注册器，
+     * 用户自定义 FlowSource Bean 同样不被消费。
+     */
+    public static class Flows {
+        /**
+         * 是否启用自动加载，默认 true。
+         */
+        private boolean enabled = true;
+
+        /**
+         * 扫描位置列表，默认 classpath*:flows/*.md；每项为 Ant 模式或具体文件路径。
+         */
+        private List<String> locations = List.of("classpath*:flows/*.md");
+
+        /**
+         * 读取是否启用自动加载，默认 true。
+         *
+         * @return 是否启用自动加载，默认 true
+         */
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        /**
+         * 绑定是否启用自动加载，默认 true。
+         *
+         * @param enabled 配置值
+         */
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        /**
+         * 读取扫描位置列表，默认 classpath*:flows/*.md。
+         *
+         * @return 位置列表，不可为 null
+         */
+        public List<String> getLocations() {
+            return locations;
+        }
+
+        /**
+         * 绑定扫描位置列表，整体替换默认值。
+         *
+         * @param locations 位置列表，不可为 null
+         */
+        public void setLocations(List<String> locations) {
+            this.locations = List.copyOf(locations);
+        }
     }
 
     /**
