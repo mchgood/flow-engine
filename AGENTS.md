@@ -48,9 +48,11 @@ Use Chinese Javadoc for named production types, including nested types: responsi
 - `mvn verify` also runs a Checkstyle gate (`config/checkstyle/checkstyle.xml`) that enforces the
   Alibaba Java convention subset for formatting and naming: braces on every control-flow statement,
   one statement and one variable declaration per line, 120-column limit, no wildcard imports,
-  ordered import groups, and no identifier shorter than three characters outside the whitelist
-  `i`/`j`/`k` (loop counters and lambda parameters), `id`, and `to`. Fix violations by changing the
-  code; do not relax a rule `format` or add a whitelist entry to make a failure pass.
+  ordered import groups, and no variable, parameter, field, or record component shorter than three
+  characters outside the whitelist `i`/`j`/`k` (loop counters and lambda parameters), `id`, and
+  `to` (method and type names follow the standard Alibaba patterns but have no length floor). Fix
+  violations by changing the code; do not relax a rule `format` or add a whitelist entry to make a
+  failure pass.
 - Preserve aggregate LINE >= 95% and BRANCH >= 88% over core, Spring and Starter. Examples supply execution data, not production class counts. Never lower thresholds to pass.
 - Use error-code and side-effect assertions for negative cases. Concurrency tests need latches/barriers, bounded waits and cleanup in `finally`; generated tests need fixed seeds and an independent oracle. For parser/scheduler changes, cover relevant races and malformed/combined graphs; test counts alone do not establish completeness.
 - Once relevant checks pass, repeat or broaden them only for a new change, failure or concrete unresolved risk. Report what changed, checks actually run and material limitations; distinguish historical test results from this run.
