@@ -4,6 +4,7 @@ import io.github.mchgood.flow.api.FlowEngine;
 import io.github.mchgood.flow.boot.autoconfigure.FlowEngineAutoConfiguration;
 import io.github.mchgood.flow.exception.FlowException;
 import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spi.FlowDocument;
 import io.github.mchgood.flow.spi.FlowSource;
@@ -13,9 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.StaticApplicationContext;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -38,7 +38,7 @@ class FlowSourceRegistrarTest {
 
     private final ApplicationContextRunner runner = new ApplicationContextRunner().
         withConfiguration(AutoConfigurations.of(FlowEngineAutoConfiguration.class)).
-        withUserConfiguration(AutoLoadNodes.class);
+        withUserConfiguration(CheckNode.class, PackNode.class);
 
     @Test
     void loadsFlowsFromDefaultClasspathLocation() {
@@ -183,18 +183,24 @@ class FlowSourceRegistrarTest {
     }
 
     /**
-     * 提供自动加载测试资源所需的 check 与 pack 业务节点。
+     * 自动加载测试资源所需的 check 节点。
      */
-    @Configuration(proxyBeanMethods = false)
-    static class AutoLoadNodes {
-        @Bean
-        FlowNode<?> check() {
-            return context -> context.input();
+    @Component("check")
+    static class CheckNode implements FlowNode<Object> {
+        @Override
+        public Object execute(NodeContext context) {
+            return context.input();
         }
+    }
 
-        @Bean
-        FlowNode<?> pack() {
-            return context -> context.input();
+    /**
+     * 自动加载测试资源所需的 pack 节点。
+     */
+    @Component("pack")
+    static class PackNode implements FlowNode<Object> {
+        @Override
+        public Object execute(NodeContext context) {
+            return context.input();
         }
     }
 

@@ -4,6 +4,7 @@ import io.github.mchgood.flow.api.FlowEngine;
 import io.github.mchgood.flow.config.EngineConfig;
 import io.github.mchgood.flow.exception.FlowException;
 import io.github.mchgood.flow.node.FlowNode;
+import io.github.mchgood.flow.node.NodeContext;
 import io.github.mchgood.flow.runtime.DefaultFlowEngine;
 import io.github.mchgood.flow.spi.ConditionEvaluator;
 import io.github.mchgood.flow.spi.NodeResolver;
@@ -16,9 +17,9 @@ import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -33,7 +34,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class FlowEngineAutoConfigurationTest {
     private final ApplicationContextRunner runner = new ApplicationContextRunner().
         withConfiguration(AutoConfigurations.of(FlowEngineAutoConfiguration.class)).
-        withUserConfiguration(AutoLoadNodes.class);
+        withUserConfiguration(CheckNode.class, PackNode.class);
     private static final String FLOW = """
         ```mermaid
         flowchart TD
@@ -44,7 +45,7 @@ class FlowEngineAutoConfigurationTest {
 
     @Test
     void defaultBeansExecuteAnApplicationNode() {
-        runner.withBean("echo", FlowNode.class, () -> context -> context.input()).run(context -> {
+        runner.withUserConfiguration(EchoNode.class).run(context -> {
             assertThat(context).hasSingleBean(FlowEngine.class).hasSingleBean(NodeResolver.class).
                 hasSingleBean(ConditionEvaluator.class).hasSingleBean(EngineConfig.class);
             assertThat(context.getBean(EngineConfig.class)).isEqualTo(EngineConfig.defaults());
@@ -236,23 +237,40 @@ class FlowEngineAutoConfigurationTest {
     }
 
     /**
-     * 提供默认路径自动加载测试资源所需的业务节点。
+     * 自动加载与装配测试共用的 echo 回显节点。
      */
-    @Configuration(proxyBeanMethods = false)
-    static class AutoLoadNodes {
-        @Bean
-        FlowNode<?> check() {
-            return context -> context.input();
+    @Component("echo")
+    static class EchoNode implements FlowNode<Object> {
+        @Override
+        public Object execute(NodeContext context) {
+            return context.input();
         }
+    }
 
-        @Bean
-        FlowNode<?> pack() {
-            return context -> context.input();
+    /**
+     * 自动加载测试资源所需的 check 节点。
+     */
+    @Component("check")
+    static class CheckNode implements FlowNode<Object> {
+        @Override
+        public Object execute(NodeContext context) {
+            return context.input();
+        }
+    }
+
+    /**
+     * 自动加载测试资源所需的 pack 节点。
+     */
+    @Component("pack")
+    static class PackNode implements FlowNode<Object> {
+        @Override
+        public Object execute(NodeContext context) {
+            return context.input();
         }
     }
 
     @Configuration(proxyBeanMethods = false)
     @EnableAutoConfiguration
-    @Import(AutoLoadNodes.class)
+    @Import({CheckNode.class, PackNode.class})
     static class BootHost {}
 }
