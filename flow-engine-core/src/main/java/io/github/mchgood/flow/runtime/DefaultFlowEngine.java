@@ -885,16 +885,13 @@ public final class DefaultFlowEngine implements FlowEngine {
     }
 
     /**
-     * 持根锁把节点实际终态固化为拦截器快照；无错误记录时按状态推导。
+     * 持根锁把节点实际终态固化为拦截器快照；非成功终态必然携带错误记录。
      */
     private NodeOutcome outcomeOf(RuntimeNode node) {
         if (node.error != null) {
             return new NodeOutcome(null, node.error.code(), node.error.message());
         }
-        if (node.status == NodeStatus.SUCCEEDED) {
-            return new NodeOutcome(node.value, null, null);
-        }
-        return new NodeOutcome(null, "NODE_FAILED", node.status.name());
+        return new NodeOutcome(node.value, null, null);
     }
 
     /**

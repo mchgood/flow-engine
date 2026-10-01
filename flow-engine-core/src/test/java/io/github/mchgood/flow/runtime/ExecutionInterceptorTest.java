@@ -414,4 +414,126 @@ class ExecutionInterceptorTest {
             assertNull(result.results().get("work").value());
         }
     }
+
+    @Test
+    void beforeFlowVirtualMachineErrorPropagatesAndReleasesAdmission() {
+        AtomicBoolean thrown = new AtomicBoolean();
+        FlowExecutionInterceptor fatal = new FlowExecutionInterceptor() {
+            public void beforeFlow(String flowId, String executionId, Object input) {
+                if (thrown.compareAndSet(false, true)) {
+                    throw new OutOfMemoryError("simulated");
+                }
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
+                List.of(fatal), List.of())) {
+            flowEngine.register("serial", SERIAL);
+            assertThrows(OutOfMemoryError.class, () -> flowEngine.execute("serial", Map.of()));
+            assertTrue(flowEngine.execute("serial", Map.of()).succeeded());
+        }
+    }
+
+    @Test
+    void flowAfterHookVirtualMachineErrorPropagatesAfterSettle() {
+        FlowExecutionInterceptor fatal = new FlowExecutionInterceptor() {
+            public void afterFlow(FlowResult result) {
+                throw new OutOfMemoryError("simulated");
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
+                List.of(fatal), List.of())) {
+            flowEngine.register("serial", SERIAL);
+            assertThrows(OutOfMemoryError.class, () -> flowEngine.execute("serial", Map.of()));
+        }
+    }
+
+    @Test
+    void flowTerminalHookThrowingIsLoggedAndResultStillReturned() {
+        FlowExecutionInterceptor throwing = new FlowExecutionInterceptor() {
+            public void onSuccess(FlowResult result) {
+                throw new IllegalStateException("metrics down");
+            }
+
+            public void onFailure(FlowResult result) {
+                throw new IllegalStateException("metrics down");
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
+                List.of(throwing), List.of())) {
+            flowEngine.register("serial", SERIAL);
+            assertTrue(flowEngine.execute("serial", Map.of()).succeeded());
+        }
+    }
+
+    @Test
+    void flowTerminalHookVirtualMachineErrorPropagates() {
+        FlowExecutionInterceptor fatal = new FlowExecutionInterceptor() {
+            public void onSuccess(FlowResult result) {
+                throw new OutOfMemoryError("simulated");
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
+                List.of(fatal), List.of())) {
+            flowEngine.register("serial", SERIAL);
+            assertThrows(OutOfMemoryError.class, () -> flowEngine.execute("serial", Map.of()));
+        }
+    }
+
+    @Test
+    void beforeNodeVirtualMachineErrorFailsNodeWithoutInterceptorCode() {
+        NodeExecutionInterceptor fatal = new NodeExecutionInterceptor() {
+            public void beforeNode(NodeContext context) {
+                throw new OutOfMemoryError("simulated");
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
+                List.of(), List.of(fatal))) {
+            flowEngine.register("serial", SERIAL);
+            FlowResult result = flowEngine.execute("serial", Map.of());
+            assertFalse(result.succeeded());
+            assertEquals("NODE_FAILED", result.errors().get(0).code());
+        }
+    }
+
+    @Test
+    void nodeHookVirtualMachineErrorDoesNotChangePublishedOutcome() {
+        NodeExecutionInterceptor fatal = new NodeExecutionInterceptor() {
+            public void afterNode(NodeContext context, io.github.mchgood.flow.spi.NodeOutcome outcome) {
+                throw new OutOfMemoryError("simulated");
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
+                List.of(), List.of(fatal))) {
+            flowEngine.register("serial", SERIAL);
+            FlowResult result = flowEngine.execute("serial", Map.of());
+            assertTrue(result.succeeded());
+        }
+    }
+
+    @Test
+    void nodeTerminalHookVirtualMachineErrorDoesNotChangePublishedOutcome() {
+        NodeExecutionInterceptor fatal = new NodeExecutionInterceptor() {
+            public void onSuccess(NodeContext context, Object value) {
+                throw new OutOfMemoryError("simulated");
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
+                List.of(), List.of(fatal))) {
+            flowEngine.register("serial", SERIAL);
+            FlowResult result = flowEngine.execute("serial", Map.of());
+            assertTrue(result.succeeded());
+        }
+    }
+
+    @Test
+    void businessBeanVirtualMachineErrorFailsNodeWithoutInterceptorCode() {
+        try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> {
+            throw new OutOfMemoryError("simulated");
+        }), config(4000, 8000), List.of(), List.of())) {
+            flowEngine.register("serial", SERIAL);
+            FlowResult result = flowEngine.execute("serial", Map.of());
+            assertFalse(result.succeeded());
+            assertEquals("NODE_FAILED", result.errors().get(0).code());
+        }
+    }
 }
