@@ -102,7 +102,7 @@ public class FlowEngineAutoConfiguration {
     @ConditionalOnProperty(prefix = "flow-engine.flows", name = "enabled", havingValue = "true",
             matchIfMissing = true)
     public LocalMarkdownFlowSource localMarkdownFlowSource(FlowEngineProperties properties) {
-        return new LocalMarkdownFlowSource(properties.getFlows().getLocations());
+        return new LocalMarkdownFlowSource(properties.getFlows().getLocations(), properties.getFlows().toLimits());
     }
 
     /**
@@ -110,6 +110,7 @@ public class FlowEngineAutoConfiguration {
      *
      * @param engines 引擎提供者，可为空
      * @param sources 来源提供者，可为空
+     * @param properties 启动期加载预算
      * @return 自动加载注册器
      */
     @Bean
@@ -117,7 +118,7 @@ public class FlowEngineAutoConfiguration {
     @ConditionalOnProperty(prefix = "flow-engine.flows", name = "enabled", havingValue = "true",
             matchIfMissing = true)
     public FlowSourceRegistrar flowSourceRegistrar(ObjectProvider<FlowEngine> engines,
-            ObjectProvider<FlowSource> sources) {
-        return new FlowSourceRegistrar(engines, sources);
+            ObjectProvider<FlowSource> sources, FlowEngineProperties properties) {
+        return new FlowSourceRegistrar(engines, sources, properties.getFlows().toLimits());
     }
 }

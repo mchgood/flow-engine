@@ -31,7 +31,7 @@ Spring Boot 应用引入 Starter（尚未发布 Maven Central，请先在源码�
 <dependency>
     <groupId>io.github.mchgood</groupId>
     <artifactId>flow-engine-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -72,7 +72,7 @@ flowchart TD
 - 矩形节点 ID 默认就是 Spring Bean ID。
 - `validateOrder_before` 和 `validateOrder_after` 都调用 `validateOrder` Bean，完整 ID 用于隔离两次调用的状态和结果。
 - 普通菱形是一入多出的条件网关，恰好选择一条出边；`default` 最多一条。
-- `{"+"}` 是并行分叉或并行汇合，汇合等待全部已激活输入。
+- `{"+"}` 是并行分叉或并行汇合，汇合要求全部输入路径激活并完成；全未激活时跳过，混合状态失败。
 - 双边框节点按 ID 查找子流程；例如 `fulfillment_main` 调用 `fulfillment` 流程。
 
 注册并执行：
@@ -148,12 +148,14 @@ mvn verify
 - [快速使用](docs/quick-start.md)
 - [需求文档](docs/requirements.md)
 - [技术方案](docs/technical-design.md)
+- [生产接入与发布](docs/production-guide.md)
+- [变更记录](CHANGELOG.md)
 
-当前版本为原型阶段的 `0.1.0-SNAPSHOT`，API 尚未承诺兼容性。
+当前准备交付版本为 `0.1.0`。兼容范围、资源边界、发布与上线步骤见 [生产接入](docs/production-guide.md)。未发布 Maven Central，需先 install 或使用内部制品仓库。
 
 
 ## 测试覆盖与 CI
 
 执行 `mvn verify` 后运行 `python3 scripts/check-coverage.py`。聚合 HTML 报告位于 `flow-engine-coverage/target/site/jacoco-aggregate/index.html`；CI 保存测试报告与覆盖率报告，并检查行覆盖率至少 95%、分支覆盖率至少 88%。
 
-当前 205 个测试用例全部通过，含 36 张固定种子生成 DAG 的独立结果对照。分类、断言范围与仍未覆盖的风险见 [测试覆盖审查](docs/testing-coverage.md)。测试数量和覆盖率都不等于所有并发交错已经验证。
+交付构建的 286 个 reactor 测试及 2 个独立消费测试通过，聚合行覆盖率 96.30%、分支覆盖率 90.83%。包含固定种子 DAG 对照、2000 份文本变异和 32000 次父流程并发调用。分类、断言范围与仍未覆盖的风险见 [测试覆盖审查](docs/testing-coverage.md)。测试数量和覆盖率都不等于所有并发交错已经验证。

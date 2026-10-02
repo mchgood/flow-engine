@@ -10,7 +10,7 @@ Spring Boot 用户优先阅读 [Starter 接入指南](spring-boot.md)，可省�
 - Maven 3.9+
 - Spring Framework 7
 
-当前项目仍处于 `0.1.0-SNAPSHOT` 原型阶段，尚未发布到 Maven Central。请先在源码根目录安装：
+当前准备交付版本为 `0.1.0`，尚未发布到 Maven Central。请先在源码根目录安装：
 
 ```bash
 mvn install
@@ -24,7 +24,7 @@ Spring 应用通常只需要引入 Spring 适配模块，它会传递依赖核�
 <dependency>
     <groupId>io.github.mchgood</groupId>
     <artifactId>flow-engine-spring</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 

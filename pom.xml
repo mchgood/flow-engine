@@ -6,8 +6,17 @@
 
     <groupId>io.github.mchgood</groupId>
     <artifactId>flow-engine</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>pom</packaging>
+    <name>Flow Engine</name>
+    <description>In-process Mermaid workflow execution for Java and Spring applications.</description>
+    <url>https://github.com/mchgood/flow-engine</url>
+    <scm>
+        <connection>scm:git:https://github.com/mchgood/flow-engine.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/mchgood/flow-engine.git</developerConnection>
+        <url>https://github.com/mchgood/flow-engine</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <modules>
         <module>flow-engine-core</module>
@@ -23,6 +32,8 @@
         <spring-boot.version>4.1.1</spring-boot.version>
         <spring.version>7.0.9</spring.version>
         <junit.version>5.11.4</junit.version>
+        <test.excludedGroups>soak</test.excludedGroups>
+        <project.build.outputTimestamp>2026-10-02T07:00:00Z</project.build.outputTimestamp>
     </properties>
 
     <dependencyManagement>
@@ -46,6 +57,11 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+            </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -74,6 +90,10 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
+                <configuration>
+                    <excludedGroups>${test.excludedGroups}</excludedGroups>
+                    <argLine>@{argLine} -Xms64m -Xmx512m</argLine>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -106,4 +126,49 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>production-verification</id>
+            <properties>
+                <test.excludedGroups>none</test.excludedGroups>
+            </properties>
+        </profile>
+        <profile>
+            <id>release-artifacts</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals><goal>jar-no-fork</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.11.3</version>
+                        <configuration>
+                            <doclint>all,-missing</doclint>
+                            <failOnWarnings>true</failOnWarnings>
+                            <notimestamp>true</notimestamp>
+                            <locale>zh_CN</locale>
+                            <encoding>UTF-8</encoding>
+                            <detectJavaApiLink>false</detectJavaApiLink>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadoc</id>
+                                <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

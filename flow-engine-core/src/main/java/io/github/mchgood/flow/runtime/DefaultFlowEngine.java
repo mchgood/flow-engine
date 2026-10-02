@@ -800,6 +800,7 @@ public final class DefaultFlowEngine implements FlowEngine {
             root.lock.unlock();
         }
         CURRENT_ENGINE.set(this);
+        boolean notificationStarted = false;
         try {
             Object value;
             String selected = null;
@@ -813,6 +814,12 @@ public final class DefaultFlowEngine implements FlowEngine {
                         }
                         throw new FlowException("INTERCEPTOR_FAILED", "beforeNode: " + node.spec.id, failure);
                     }
+                }
+                NodeOutcome stopped = stoppedBeforeBusiness(node);
+                if (stopped != null) {
+                    notificationStarted = true;
+                    notifyNode(node, context, stopped);
+                    return;
                 }
                 value = node.spec.bean.execute(context);
             } else {
@@ -852,8 +859,13 @@ public final class DefaultFlowEngine implements FlowEngine {
             } finally {
                 root.lock.unlock();
             }
+            notificationStarted = true;
             notifyNode(node, context, outcome);
         } catch (Throwable failure) {
+            // 通知已开始时的 VM 致命错误不能重新进入业务失败通知，否则钩子执行两次。
+            if (notificationStarted && failure instanceof VirtualMachineError error) {
+                throw error;
+            }
             root.lock.lock();
             NodeOutcome outcome = null;
             try {
@@ -874,6 +886,28 @@ public final class DefaultFlowEngine implements FlowEngine {
             }
         } finally {
             CURRENT_ENGINE.remove();
+        }
+    }
+
+    /**
+     * 前置钩子返回后重新检查期限与停止状态，防止忽略中断的钩子继续启动业务。
+     * <p>返回终态快照时通知仍在锁外进行；返回 null 表示本次检查允许开始业务。
+     * 检查之后发生的取消仍是协作式的，不能原子地撤回已经开始的外部副作用。
+     */
+    private NodeOutcome stoppedBeforeBusiness(RuntimeNode node) {
+        Root root = node.execution.root;
+        root.lock.lock();
+        try {
+            expire(root);
+            if (node.status == NodeStatus.RUNNING && node.execution.stopping) {
+                fail(node, NodeStatus.FAILED, "FLOW_STOPPED", "Execution stopped before business call");
+            }
+            if (node.status != NodeStatus.RUNNING || node.execution.forced) {
+                return outcomeOf(node);
+            }
+            return null;
+        } finally {
+            root.lock.unlock();
         }
     }
 

@@ -571,3 +571,8 @@ Registrar 作为 `SmartInitializingSingleton` 在全部单例就绪后执行一�
 静默跳过；与手动注册的 flowId 冲突按 DUPLICATE_FLOW 启动失败。locations 默认
 `classpath*:flows/*.md`，匹配按资源 URL 排序，非 `.md` 忽略；模式零匹配静默、具体路径
 不可读则启动失败。自动加载只注册、绝不执行。
+
+
+## 0.1.0 交付边界补充
+
+前置节点拦截器返回后检查期限与执行停止状态，拒绝迟到业务启动；已开始的业务仍依赖协作取消。自动加载限制单份/累计 UTF-8 字节、文档数、流程数及切分后展开文本，跨来源原子注册。内置来源严格 UTF-8 解码、位置去重并拒绝非本地 URI；自定义来源自行限制读取与分配。新增 production-verification/release-artifacts 构建、独立消费 Starter 验证；交付与运行约束见 [生产接入](production-guide.md)。

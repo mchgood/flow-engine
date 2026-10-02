@@ -1,5 +1,6 @@
 package io.github.mchgood.flow.boot.autoconfigure;
 
+import io.github.mchgood.flow.boot.flows.FlowLoadingLimits;
 import io.github.mchgood.flow.config.EngineConfig;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -323,6 +324,97 @@ public class FlowEngineProperties {
          * 扫描位置列表，默认 classpath*:flows/*.md；每项为 Ant 模式或具体文件路径。
          */
         private List<String> locations = List.of("classpath*:flows/*.md");
+
+        /** 单份 UTF-8 字节上限，默认 1 MiB。 */
+        private int maxDocumentBytes = FlowLoadingLimits.defaults().maxDocumentBytes();
+        /** 批次原文与展开文本各自的上限，默认 16 MiB。 */
+        private int maxTotalBytes = FlowLoadingLimits.defaults().maxTotalBytes();
+        /** 批次文档数上限，默认 128。 */
+        private int maxDocuments = FlowLoadingLimits.defaults().maxDocuments();
+        /** 批次流程数上限，默认 256。 */
+        private int maxFlows = FlowLoadingLimits.defaults().maxFlows();
+
+        /**
+         * 创建校验后的启动预算，不保留属性对象引用。
+         *
+         * @return 单份默认 1 MiB、累计默认 16 MiB、128 文档、256 流程的预算
+         * @throws IllegalArgumentException 预算越界
+         */
+        public FlowLoadingLimits toLimits() {
+            return new FlowLoadingLimits(maxDocumentBytes, maxTotalBytes, maxDocuments, maxFlows);
+        }
+
+        /**
+         * 读取单份 UTF-8 字节上限，默认 1048576，范围 1 至 1048576。
+         *
+         * @return 配置的资源上限
+         */
+        public int getMaxDocumentBytes() {
+            return maxDocumentBytes;
+        }
+
+        /**
+         * 绑定单份 UTF-8 字节上限，默认 1048576，范围 1 至 1048576；在 toLimits 中统一校验。
+         *
+         * @param maxDocumentBytes 资源上限
+         */
+        public void setMaxDocumentBytes(int maxDocumentBytes) {
+            this.maxDocumentBytes = maxDocumentBytes;
+        }
+
+        /**
+         * 读取累计原文与展开文本各自的字节上限，默认 16777216，至多 268435456。
+         *
+         * @return 配置的资源上限
+         */
+        public int getMaxTotalBytes() {
+            return maxTotalBytes;
+        }
+
+        /**
+         * 绑定累计原文与展开文本各自的字节上限，默认 16777216，至多 268435456；在 toLimits 中统一校验。
+         *
+         * @param maxTotalBytes 资源上限
+         */
+        public void setMaxTotalBytes(int maxTotalBytes) {
+            this.maxTotalBytes = maxTotalBytes;
+        }
+
+        /**
+         * 读取批次文档上限，默认 128，范围 1 至 1024。
+         *
+         * @return 配置的资源上限
+         */
+        public int getMaxDocuments() {
+            return maxDocuments;
+        }
+
+        /**
+         * 绑定批次文档上限，默认 128，范围 1 至 1024；在 toLimits 中统一校验。
+         *
+         * @param maxDocuments 资源上限
+         */
+        public void setMaxDocuments(int maxDocuments) {
+            this.maxDocuments = maxDocuments;
+        }
+
+        /**
+         * 读取批次流程上限，默认 256，范围 1 至 4096。
+         *
+         * @return 配置的资源上限
+         */
+        public int getMaxFlows() {
+            return maxFlows;
+        }
+
+        /**
+         * 绑定批次流程上限，默认 256，范围 1 至 4096；在 toLimits 中统一校验。
+         *
+         * @param maxFlows 资源上限
+         */
+        public void setMaxFlows(int maxFlows) {
+            this.maxFlows = maxFlows;
+        }
 
         /**
          * 读取是否启用自动加载，默认 true。

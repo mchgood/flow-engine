@@ -15,6 +15,8 @@ import io.github.mchgood.flow.spi.SourceLocation;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.List;
@@ -22,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -371,6 +374,103 @@ class ExecutionInterceptorTest {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {"node", "flow", "close"})
+    void ignoredInterruptInBeforeNodeCannotStartBusinessAfterTermination(String reason) throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch interrupted = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger businessCalls = new AtomicInteger();
+        AtomicInteger callbacks = new AtomicInteger();
+        CountDownLatch notified = new CountDownLatch(1);
+        NodeExecutionInterceptor stubborn = new NodeExecutionInterceptor() {
+            @Override
+            public void beforeNode(NodeContext context) {
+                entered.countDown();
+                while (release.getCount() != 0) {
+                    try {
+                        assertTrue(release.await(5, TimeUnit.SECONDS), "Hook was not released");
+                    } catch (InterruptedException ignored) {
+                        interrupted.countDown();
+                    }
+                }
+            }
+
+            @Override
+            public void afterNode(NodeContext context, io.github.mchgood.flow.spi.NodeOutcome outcome) {
+                callbacks.incrementAndGet();
+                notified.countDown();
+            }
+        };
+        var callers = Executors.newSingleThreadExecutor();
+        var settings = config("node".equals(reason) ? 100 : 5000, "flow".equals(reason) ? 100 : 5000);
+        try (var flowEngine = engine(Map.of("work", context -> businessCalls.incrementAndGet()), settings,
+                List.of(), List.of(stubborn))) {
+            flowEngine.register("serial", SERIAL);
+            var result = callers.submit(() -> flowEngine.execute("serial", null));
+            assertTrue(entered.await(3, TimeUnit.SECONDS));
+            if ("close".equals(reason)) {
+                flowEngine.close();
+            }
+            assertTrue(interrupted.await(3, TimeUnit.SECONDS), "Cancellation did not reach hook");
+            release.countDown();
+            assertFalse(result.get(3, TimeUnit.SECONDS).succeeded());
+            callers.shutdown();
+            assertTrue(callers.awaitTermination(3, TimeUnit.SECONDS));
+            // 流程强制终止可能先返回；close 后工作线程最终退出才完成钩子通知。
+            assertTrue(notified.await(3, TimeUnit.SECONDS));
+            assertEquals(1, callbacks.get());
+            assertEquals(0, businessCalls.get());
+        } finally {
+            release.countDown();
+            callers.shutdownNow();
+            assertTrue(callers.awaitTermination(3, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    void branchFailureStopsBusinessStillInBeforeNode() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        AtomicInteger businessCalls = new AtomicInteger();
+        NodeExecutionInterceptor hooks = new NodeExecutionInterceptor() {
+            @Override
+            public void beforeNode(NodeContext context) {
+                if ("work_wait".equals(context.nodeId())) {
+                    entered.countDown();
+                    try {
+                        assertTrue(release.await(3, TimeUnit.SECONDS));
+                    } catch (InterruptedException exception) {
+                        throw new IllegalStateException(exception);
+                    }
+                }
+            }
+
+            @Override
+            public void afterNode(NodeContext context, io.github.mchgood.flow.spi.NodeOutcome outcome) {
+                if ("failure".equals(context.nodeId())) {
+                    release.countDown();
+                }
+            }
+        };
+        FlowNode<Integer> failure = context -> {
+            assertTrue(entered.await(3, TimeUnit.SECONDS));
+            throw new IllegalStateException("business failure");
+        };
+        try (var flowEngine = engine(Map.of("work", context -> businessCalls.incrementAndGet(), "failure", failure),
+                config(4000, 8000), List.of(), List.of(hooks))) {
+            flowEngine.register("parallel", md("start([s]) --> fork{\"+\"}\n"
+                + "fork --> work_wait\nfork --> failure\nwork_wait --> join{\"+\"}\nfailure --> join\n"
+                + "join --> finish([f])"));
+            FlowResult result = flowEngine.execute("parallel", null);
+            assertFalse(result.succeeded());
+            assertEquals("FLOW_STOPPED", result.results().get("work_wait").error().code());
+            assertEquals(0, businessCalls.get());
+        } finally {
+            release.countDown();
+        }
+    }
+
     @Test
     void emptyInterceptorListsBehaveLikeLegacyConstruction() {
         try (var flowEngine = engine(Map.of("work", (FlowNode<Object>) context -> 1), config(4000, 8000),
@@ -412,6 +512,24 @@ class ExecutionInterceptorTest {
             assertEquals("BUSINESS_RULE", result.results().get("work").error().code());
             assertNotNull(result.results().get("work").error().message());
             assertNull(result.results().get("work").value());
+        }
+    }
+
+    @Test
+    void fatalAfterNodeHookIsNotInvokedTwice() {
+        AtomicInteger notifications = new AtomicInteger();
+        NodeExecutionInterceptor fatal = new NodeExecutionInterceptor() {
+            @Override
+            public void afterNode(NodeContext context, io.github.mchgood.flow.spi.NodeOutcome outcome) {
+                notifications.incrementAndGet();
+                throw new OutOfMemoryError("simulated notification failure");
+            }
+        };
+        try (var flowEngine = engine(Map.of("work", context -> 1), config(4000, 8000),
+                List.of(), List.of(fatal))) {
+            flowEngine.register("serial", SERIAL);
+            assertTrue(flowEngine.execute("serial", null).succeeded());
+            assertEquals(1, notifications.get());
         }
     }
 

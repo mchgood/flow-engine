@@ -10,6 +10,7 @@ import org.springframework.beans.factory.SmartInitializingSingleton;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * 汇总全部 FlowSource 文档，按一级标题切分后原子注册到引擎。
@@ -23,6 +24,7 @@ import java.util.Map;
 public final class FlowSourceRegistrar implements SmartInitializingSingleton {
     private final ObjectProvider<FlowEngine> engines;
     private final ObjectProvider<FlowSource> sources;
+    private final FlowLoadingLimits limits;
     private final MarkdownFlowParser parser = new MarkdownFlowParser();
 
     /**
@@ -32,8 +34,21 @@ public final class FlowSourceRegistrar implements SmartInitializingSingleton {
      * @param sources 来源提供者，可为空
      */
     public FlowSourceRegistrar(ObjectProvider<FlowEngine> engines, ObjectProvider<FlowSource> sources) {
+        this(engines, sources, FlowLoadingLimits.defaults());
+    }
+
+    /**
+     * 创建带跨来源预算的注册器。
+     *
+     * @param engines 引擎提供者
+     * @param sources 来源提供者；自定义来源需自行限制 load 内部的读取分配
+     * @param limits 全批预算
+     */
+    public FlowSourceRegistrar(ObjectProvider<FlowEngine> engines, ObjectProvider<FlowSource> sources,
+            FlowLoadingLimits limits) {
         this.engines = engines;
         this.sources = sources;
+        this.limits = Objects.requireNonNull(limits);
     }
 
     @Override
@@ -44,16 +59,28 @@ public final class FlowSourceRegistrar implements SmartInitializingSingleton {
         }
         Map<String, String> flows = new LinkedHashMap<>();
         Map<String, String> origins = new LinkedHashMap<>();
+        int documents = 0;
+        long rawBytes = 0;
+        long expandedBytes = 0;
         for (FlowSource source : sources.orderedStream().toList()) {
             for (FlowDocument document : source.load()) {
-                Map<String, String> parsed = parser.split(document.sourceName(), document.markdown());
                 String origin = source.name() + ":" + document.sourceName();
+                if (++documents > limits.maxDocuments()) {
+                    throw FlowLoadingLimits.exceeded(origin);
+                }
+                rawBytes += limits.bytes(document.markdown(),
+                    Math.min(limits.maxDocumentBytes(), limits.maxTotalBytes() - rawBytes), origin);
+                Map<String, String> parsed = parser.split(document.sourceName(), document.markdown(), limits);
                 for (Map.Entry<String, String> entry : parsed.entrySet()) {
                     if (flows.putIfAbsent(entry.getKey(), entry.getValue()) != null) {
                         throw new FlowException("DUPLICATE_FLOW",
                             "Flow \"" + entry.getKey() + "\" defined in both " + origins.get(entry.getKey())
                                 + " and " + origin);
                     }
+                    if (flows.size() > limits.maxFlows()) {
+                        throw FlowLoadingLimits.exceeded(origin);
+                    }
+                    expandedBytes += limits.bytes(entry.getValue(), limits.maxTotalBytes() - expandedBytes, origin);
                     origins.put(entry.getKey(), origin);
                 }
             }
@@ -65,7 +92,7 @@ public final class FlowSourceRegistrar implements SmartInitializingSingleton {
             engine.registerAll(flows);
         } catch (FlowException exception) {
             throw new FlowException(exception.code(),
-                exception.getMessage() + "; flows loaded from sources: " + origins);
+                exception.getMessage() + "; flows loaded from sources: " + origins, exception);
         }
     }
 }

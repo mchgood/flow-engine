@@ -37,9 +37,23 @@ public final class MarkdownFlowParser {
      *         DEFINITION_LIMIT 文档缺失
      */
     public Map<String, String> split(String sourceName, String markdown) {
+        return split(sourceName, markdown, FlowLoadingLimits.defaults());
+    }
+
+    /**
+     * 使用启动预算切分，文档数由注册器跨来源计数。
+     *
+     * @param sourceName 原文来源，用于诊断
+     * @param markdown 原始文档
+     * @param limits 原文、流程数与展开文本预算
+     * @return 保留原文件行号的流程段落
+     * @throws FlowException 语法非法或预算超限
+     */
+    public Map<String, String> split(String sourceName, String markdown, FlowLoadingLimits limits) {
         if (markdown == null) {
             throw new FlowException("DEFINITION_LIMIT", "Markdown missing for " + sourceName);
         }
+        limits.bytes(markdown, limits.maxDocumentBytes(), sourceName);
         String[] lines = markdown.replaceFirst("^\\uFEFF", "").split("\n", -1);
         List<Integer> headingLines = new ArrayList<>();
         List<String> flowIds = new ArrayList<>();
@@ -79,6 +93,9 @@ public final class MarkdownFlowParser {
                     throw new FlowException("INVALID_FLOW_HEADING",
                         "Duplicate level-1 heading \"" + title + "\" at " + sourceName + ":" + (i + 1));
                 }
+                if (flowIds.size() >= limits.maxFlows()) {
+                    throw FlowLoadingLimits.exceeded(sourceName);
+                }
                 headingLines.add(i);
                 flowIds.add(title);
                 currentSection = headingLines.size() - 1;
@@ -106,10 +123,13 @@ public final class MarkdownFlowParser {
         }
         Map<String, String> sections = new LinkedHashMap<>();
         List<String> view = Arrays.asList(lines);
+        long expandedBytes = 0;
         for (int k = 0; k < headingLines.size(); k++) {
             int start = headingLines.get(k);
             int end = k + 1 < headingLines.size() ? headingLines.get(k + 1) : lines.length;
-            sections.put(flowIds.get(k), "\n".repeat(start) + String.join("\n", view.subList(start, end)));
+            String section = "\n".repeat(start) + String.join("\n", view.subList(start, end));
+            expandedBytes += limits.bytes(section, limits.maxTotalBytes() - expandedBytes, sourceName);
+            sections.put(flowIds.get(k), section);
         }
         return sections;
     }

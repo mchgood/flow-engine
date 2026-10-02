@@ -27,7 +27,7 @@ flow-engine 是一个嵌入 Spring 应用的进程内轻量编排引擎：流程
 
 这章你会学到：不使用 Spring Boot 时，如何用三个步骤定义节点、编写流程并注册执行。
 
-环境要求 JDK 17+ 与 Maven 3.9+。当前版本 `0.1.0-SNAPSHOT` 尚未发布 Maven Central，先在框架源码根目录执行：
+环境要求 JDK 17+ 与 Maven 3.9+。当前版本 `0.1.0` 尚未发布 Maven Central，先在框架源码根目录执行：
 
 ```bash
 mvn install
@@ -39,7 +39,7 @@ mvn install
 <dependency>
     <groupId>io.github.mchgood</groupId>
     <artifactId>flow-engine-spring</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -144,7 +144,7 @@ Boot 应用引入 starter（传递引入 Spring 适配与核心模块）：
 <dependency>
     <groupId>io.github.mchgood</groupId>
     <artifactId>flow-engine-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 

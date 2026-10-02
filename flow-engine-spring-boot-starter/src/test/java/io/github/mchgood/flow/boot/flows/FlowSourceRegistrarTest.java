@@ -11,6 +11,8 @@ import io.github.mchgood.flow.spi.FlowSource;
 import io.github.mchgood.flow.spring.SpelConditionEvaluator;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -176,6 +178,57 @@ class FlowSourceRegistrarTest {
             assertThat(engine.execute("masterFlow", null).succeeded()).isTrue();
             assertThat(engine.execute("helperFlow", null).succeeded()).isTrue();
         });
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"max-document-bytes=20", "max-documents=1", "max-flows=1"})
+    void customSourcesCannotBypassLoadingBudgets(String setting) {
+        TestSource first = new TestSource("first", List.of(new FlowDocument("one", document("firstFlow"))),
+            new AtomicInteger());
+        TestSource second = new TestSource("second", List.of(new FlowDocument("two", document("secondFlow"))),
+            new AtomicInteger());
+        runner.withBean("firstSource", FlowSource.class, () -> first).
+            withBean("secondSource", FlowSource.class, () -> second).
+            withPropertyValues("flow-engine.flows." + setting).run(context -> {
+                assertThat(context).hasFailed();
+                assertThat(context.getStartupFailure()).isInstanceOfSatisfying(FlowException.class,
+                    failure -> assertThat(failure.code()).isEqualTo("FLOW_LOADING_LIMIT"));
+            });
+    }
+
+    @Test
+    void cumulativeBudgetSpansEveryCustomSource() {
+        TestSource first = new TestSource("first",
+            List.of(new FlowDocument("one", document("firstFlow") + " ".repeat(400))), new AtomicInteger());
+        TestSource second = new TestSource("second",
+            List.of(new FlowDocument("two", document("secondFlow") + " ".repeat(400))), new AtomicInteger());
+        runner.withBean("firstSource", FlowSource.class, () -> first).
+            withBean("secondSource", FlowSource.class, () -> second).
+            withPropertyValues("flow-engine.flows.max-document-bytes=600", "flow-engine.flows.max-total-bytes=800").
+            run(context -> {
+                assertThat(context).hasFailed();
+                assertThat(context.getStartupFailure()).isInstanceOfSatisfying(FlowException.class,
+                    failure -> assertThat(failure.code()).isEqualTo("FLOW_LOADING_LIMIT"));
+            });
+    }
+
+    @Test
+    void configuredBudgetsBindAndInvalidBudgetsFailEvenWithCustomSource() {
+        TestSource source = new TestSource("custom", List.of(new FlowDocument("one", document("firstFlow"))),
+            new AtomicInteger());
+        runner.withBean(FlowSource.class, () -> source).withPropertyValues(
+            "flow-engine.flows.max-document-bytes=600", "flow-engine.flows.max-total-bytes=800",
+            "flow-engine.flows.max-documents=2", "flow-engine.flows.max-flows=3").run(context -> {
+                assertThat(context).hasNotFailed();
+                var flows = context.getBean(io.github.mchgood.flow.boot.autoconfigure.FlowEngineProperties.class).
+                    getFlows();
+                assertThat(flows.getMaxDocumentBytes()).isEqualTo(600);
+                assertThat(flows.getMaxTotalBytes()).isEqualTo(800);
+                assertThat(flows.getMaxDocuments()).isEqualTo(2);
+                assertThat(flows.getMaxFlows()).isEqualTo(3);
+            });
+        runner.withBean(FlowSource.class, () -> source).
+            withPropertyValues("flow-engine.flows.max-flows=0").run(context -> assertThat(context).hasFailed());
     }
 
     private static String document(String flowId) {

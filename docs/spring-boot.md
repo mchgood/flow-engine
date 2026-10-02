@@ -10,7 +10,7 @@
 <dependency>
     <groupId>io.github.mchgood</groupId>
     <artifactId>flow-engine-spring-boot-starter</artifactId>
-    <version>0.1.0-SNAPSHOT</version>
+    <version>0.1.0</version>
 </dependency>
 ```
 
@@ -142,3 +142,8 @@ flow-engine:
 不使用 Spring Boot 的项目继续依赖 `flow-engine-spring`，按照[普通 Spring 快速使用](quick-start.md)手动创建引擎即可。
 
 自动配置设计参考 [Spring Boot 官方指南](https://docs.spring.io/spring-boot/reference/features/developing-auto-configuration.html)，版本基线参考 [系统要求](https://docs.spring.io/spring-boot/system-requirements.html)。
+
+
+## 生产加载预算
+
+自动加载默认最多 128 份文档、256 个流程；单文档 UTF-8 最多 1 MiB，原文及切分展开文本各自累计最多 16 MiB。通过 flow-engine.flows.max-document-bytes / max-total-bytes / max-documents / max-flows 配置。超限以 FLOW_LOADING_LIMIT 启动失败，非法配置同样启动失败；内置读取有限长、严格 UTF-8，并按 URL 去重。本地来源只读取 file/classpath 位置，其他来源实现 FlowSource 并自行限制读取预算和超时。详见 [生产接入与发布](production-guide.md)。
