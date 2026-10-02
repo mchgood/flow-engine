@@ -546,7 +546,7 @@ public final class DefaultFlowEngine implements FlowEngine {
     }
 
     /**
-     * 持根锁写入单次失败、停止该执行的新任务并请求取消失败任务。
+     * 持根锁写入单次失败、停止整棵根执行树的新任务并请求取消失败任务。
      * 已在运行的其他任务仍可能完成，普通失败不等于整棵树立即物理退出。
      */
     private void fail(RuntimeNode node, NodeStatus status, String code, String message) {
@@ -558,14 +558,20 @@ public final class DefaultFlowEngine implements FlowEngine {
         node.error = new FlowError(code, message, node.execution.id, node.spec.id, node.execution.path);
         node.execution.errors.add(node.error);
         log("node-failed", node.execution, node, code);
-        stop(node.execution);
+        // 子流程失败也必须立即停止兄弟执行，不能等失败子流程物理收尾后才通知父调用。
+        for (var execution : node.execution.root.executions) {
+            if (execution.result == null) {
+                stop(execution);
+            }
+        }
         if (node.work != null) {
             node.work.cancelWork();
         }
     }
 
     /**
-     * 持根锁停止新调度，跳过所有待运行节点；不把已运行任务伪装为已退出。
+     * 持根锁停止一个执行实例的新调度，跳过所有待运行节点；不把已运行任务伪装为已退出。
+     * 普通失败对整棵树调用本方法；强制终止仅对指定子树调用，保持其原有范围。
      */
     private void stop(Execution execution) {
         execution.stopping = true;
@@ -595,7 +601,11 @@ public final class DefaultFlowEngine implements FlowEngine {
                 continue;
             }
             FlowStatus status = execution.forced ? execution.forcedStatus
-                    : (!execution.errors.isEmpty() ? FlowStatus.FAILED : FlowStatus.SUCCEEDED);
+                    : (execution.stopping || !execution.errors.isEmpty() ? FlowStatus.FAILED : FlowStatus.SUCCEEDED);
+            if (status == FlowStatus.FAILED && execution.errors.isEmpty()) {
+                execution.errors.add(new FlowError("FLOW_STOPPED", "Execution tree stopped after node failure",
+                        execution.id, null, execution.path));
+            }
             if (status == FlowStatus.SUCCEEDED && execution.nodes.get("finish").status != NodeStatus.SUCCEEDED) {
                 status = FlowStatus.FAILED;
                 execution.errors.add(new FlowError("NO_ACTIVE_PATH", "Finish not reached", execution.id, "finish",

@@ -319,7 +319,9 @@ XOR_JOIN 必须等待其他入边从 UNRESOLVED 变为 INACTIVE，不是看到�
 
 START、FINISH、AND 网关和 XOR_JOIN 的逻辑开始/结束同一时刻，无 TaskHandle；XOR_SPLIT 求值任务有独立耗时和 TaskHandle。FINISH 成功且全部节点均为 SUCCEEDED 或正常分支 SKIPPED、无错误、无运行任务时整体 SUCCEEDED。仅当整个相关子树均无运行、排队或待完成事件，且 FINISH 未成功时，返回 NO_ACTIVE_PATH；不能无限 condition 等待。
 
-失败引起 stopping 后，不把失败出边发布成 INACTIVE，也不再推进正常网关；执行原失败收尾逻辑。这样业务失败不能被 XOR_JOIN 当作未选路径吞掉。
+任一执行实例接受节点失败时，在共享根锁内将整棵根执行树尚未终结的实例置为 stopping，跳过并取消全部未启动任务，清空各自 ready 队列。子实例失败不等待其物理收尾才停止父级和兄弟实例；父级失败也不允许已启动子实例继续调度后继或创建新子实例。已运行任务仍可有界完成，前置节点钩子返回后再次检查本实例停止标记。
+
+失败引起 stopping 后，不把失败出边发布成 INACTIVE，也不再推进正常网关；执行原失败收尾逻辑。没有自身错误但因树级停止而收尾的实例返回 FAILED / FLOW_STOPPED，而非 NO_ACTIVE_PATH；物理在途额度仍只在实际退出或成功移出队列时释放。这样业务失败不能被 XOR_JOIN 当作未选路径吞掉。
 
 ### 6.5 SpEL 求值与分支选择
 
